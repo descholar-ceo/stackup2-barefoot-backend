@@ -1,10 +1,26 @@
+import { Op } from 'sequelize';
 import models from '../database/models';
 import tripRequestsStatus from '../utils/tripRequestsStatus.util';
 
-const { request, sequelize, Sequelize } = models;
-const { Op } = Sequelize;
+const { request, trips, sequelize, Sequelize } = models;
 const { ACCEPTED, } = tripRequestsStatus;
 
+ /**
+   *@description Saves trip request details in database
+   * @param {Object} field trip request data
+   * @returns {Object} Saved trip request details
+    */
+const getModel = (field) => {
+  let val = null;
+  val = request;
+  const arr = ['travelFrom', 'travelTo', 'travelDate', 'returnDate'];
+  arr.forEach(item => {
+    if (field === item) {
+      val = trips;
+    }
+  });
+  return val;
+};
 /**
  * @description Trip requests service
  */
@@ -20,13 +36,29 @@ export default class RequestService {
       {
         fields: [
           'userId',
-          'travelTo',
-          'travelFrom',
           'travelReason',
           'travelType',
-          'travelDate',
-          'returnDate',
           'accommodation'
+        ]
+      }
+    );
+  }
+
+    /**
+   *@description Saves trip request details in database
+   * @param {Object} tripRequestData trip request data
+   * @returns {Object} Saved trip request details
+    */
+   static handleSubTripRequest(tripRequestData) {
+    return trips.create(
+      tripRequestData,
+      {
+        fields: [
+          'requestId',
+          'travelFrom',
+          'travelTo',
+          'travelDate',
+          'returnDate'
         ]
       }
     );
@@ -37,8 +69,7 @@ export default class RequestService {
    * @description returns all of the destinations a and their appearance times from the database
    */
   static getMostTraveledDestinations = async () => {
-    const placeAndTheirVisitTimes = await sequelize.query('SELECT "travelTo", COUNT(*) FROM requests WHERE status =\'accepted\' OR status=\'Accepted\' GROUP BY "travelTo" ORDER BY count DESC');
-
+    const placeAndTheirVisitTimes = await sequelize.query('SELECT trips."travelTo", COUNT(*) FROM trips INNER JOIN requests ON requests.id = trips."requestId" WHERE requests.status =\'accepted\' OR requests.status=\'Accepted\' GROUP BY trips."travelTo" ORDER BY count DESC');
     return placeAndTheirVisitTimes;
   }
 
@@ -53,6 +84,28 @@ export default class RequestService {
     return foundReq;
   }
 
+    /**
+   * @param {Integer} userId
+   * @returns {object} foundReq
+   * @description it returns a one request of a specific user if it is passed userId
+   *  otherwise it returns any request
+   */
+  static getOneRequestFromDb1 = async (userId) => {
+    const foundReq = await trips.findOne({ where: { requestId: { [Op.eq]: userId } } });
+    return foundReq;
+  }
+
+  /**
+   * @param {Integer} userId
+   * @returns {object} foundReq
+   * @description it returns a one request of a specific user if it is passed userId
+   *  otherwise it returns any request
+   */
+  static getOneRequestFromDb2 = async (userId) => {
+    const foundReq = await trips.findAll({ where: { requestId: { [Op.eq]: userId } } });
+    return foundReq;
+  }
+
   /**
    *@param {object} reqOptions
    *@returns {object} reqs
@@ -60,7 +113,14 @@ export default class RequestService {
    */
   static getAllRequests = async (reqOptions) => {
     const { userId, offset, limit } = reqOptions;
-    const reqs = await request.findAndCountAll({ where: { userId }, offset, limit, order: [['createdAt', 'DESC']] });
+    const reqs = await request.findAndCountAll({ 
+      where: { userId },
+      include: [
+        { model:trips, separate: true }
+      ],
+      offset, 
+      limit, 
+      order: [['createdAt', 'DESC']] });
     return reqs;
   }
 
@@ -71,16 +131,17 @@ export default class RequestService {
   */
   static handleSearchTripRequests(searchCriteria) {
     const { field, search, limit, offset, userId } = searchCriteria;
+    const modelz = getModel(field);
     if (['id', 'travelDate', 'returnDate', 'travelType', 'status'].includes(field)) {
       if (userId) {
-        return request.findAll({ where: { userId, [field]: { [Op.eq]: search } }, limit, offset, });
+        return sequelize.query(`SELECT * FROM trips LEFT JOIN requests ON requests.id = trips."requestId" WHERE requests."userId" = ${userId} AND trips."${[field][0]}" = '${search}' LIMIT ${limit} OFFSET ${offset}`);
       }
-      return request.findAll({ where: { [field]: { [Op.eq]: search } }, limit, offset, });
+      return modelz.findAll({ where: { [field]: { [Op.eq]: search } }, limit, offset, });
     }
     if (userId) {
-      return request.findAll({ where: { userId, [field]: { [Op.iLike]: `%${search}%` } }, limit, offset, });
+       return sequelize.query(`SELECT * FROM trips LEFT JOIN requests ON requests.id = trips."requestId" WHERE requests."userId" = ${userId} AND trips."${[field][0]}" LIKE '%${search}%' LIMIT ${limit} OFFSET ${offset}`);
     }
-    return request.findAll({ where: { [field]: { [Op.iLike]: `%${search}%` } }, limit, offset, });
+    return modelz.findAll({ where: { [field]: { [Op.iLike]: `%${search}%` } }, limit, offset, });
   }
 
   /**
@@ -95,45 +156,106 @@ export default class RequestService {
       where: {
         userId,
         status: ACCEPTED,
-        travelDate: {
-          [Op.between]: [startDate, endDate]
-        },
       },
+      include: [{
+        model: trips,
+        required: true,
+        where: {
+          travelDate: {
+            [Op.between]: [startDate, endDate]
+          },
+        }
+      }]
     });
   }
 
+    /**
+  *@description Retrieves trips stats from database
+  * @param {Number} date
+  * @returns {Object} trips 
+   */
+  static findDate = async (date) => {
+    const tDate = await trips.findOne({
+      where: { travelDate: date }
+    });
+    return tDate;
+  }
+
   /**
-*@description update open trip request details in database
-* @param {Object} tripRequestData trip request new data
-* @param {Integer} requestId trip request id
-* @returns {Object} updated trip request details
- */
-  static updateTripRequest(tripRequestData, requestId) {
-    if (tripRequestData.travelType === 'one-way') {
-      tripRequestData.returnDate = null;
-    }
+  *@description Retrieves trips stats from database
+  * @param {Number} id
+  * @returns {Object} trips 
+   */
+  static findUser = async (id) => {
+    const user = await request.findOne({
+      where: { 
+        userId: id 
+      }
+    });
+    return user;
+  }
+
+       /**
+   *@description update open trip request details in database
+   * @param {Object} tripRequestData trip request new data
+   * @param {Integer} requestId trip request id
+   * @returns {Object} updated trip request details
+    */
+  static updateTripRequest1(tripRequestData, requestId) {
     const {
-      travelTo,
-      travelFrom,
+     travelReason,
+     travelType,
+     accommodation
+    } = tripRequestData;
+    
+   return request.update(
+     {
       travelReason,
       travelType,
-      travelDate,
-      returnDate,
       accommodation
+     },
+     { where: { id: requestId } }
+   );
+   /*
+   return sequelize.query(`UPDATE requests SET requests.travelReason = ${travelReason},
+   requests.travelType = ${travelType}, requests.accommodation = ${accommodation},
+   sub_requests.travelFrom = ${travelFrom}, sub_requests.travelTo = ${travelTo},
+   sub_requests.travelDate = ${travelDate}, sub_requests.returnDate = ${returnDate}
+   FROM sub_requests WHERE requests.id = sub_requests.requestId OR requests.id = ${requestId}`);
+   */
+}
+
+     /**
+   *@description update open trip request details in database
+   * @param {Object} tripRequestData trip request new data
+   * @param {Integer} requestId trip request id
+   * @returns {Object} updated trip request details
+    */
+   static updateTripRequest2(tripRequestData, requestId) {
+    const {
+     travelTo,
+     travelFrom,
+     travelDate,
+     returnDate
     } = tripRequestData;
-    return request.update(
-      {
-        travelTo,
-        travelFrom,
-        travelReason,
-        travelType,
-        travelDate,
-        returnDate,
-        accommodation
-      },
-      { where: { id: requestId } }
-    );
-  }
+    
+   return trips.update(
+     {
+      travelTo, 
+      travelFrom,
+      travelDate,
+      returnDate
+     },
+     { where: { requestId } }
+   );
+   /*
+   return sequelize.query(`UPDATE requests SET requests.travelReason = ${travelReason},
+   requests.travelType = ${travelType}, requests.accommodation = ${accommodation},
+   sub_requests.travelFrom = ${travelFrom}, sub_requests.travelTo = ${travelTo},
+   sub_requests.travelDate = ${travelDate}, sub_requests.returnDate = ${returnDate}
+   FROM sub_requests WHERE requests.id = sub_requests.requestId OR requests.id = ${requestId}`);
+   */
+}
 
   /**
     *@description retrieves a trip request matching @id from database
@@ -199,3 +321,4 @@ export default class RequestService {
     return updateHandler;
   }
 }
+

@@ -76,6 +76,78 @@ export default {
     password: 'Helloworld3@',
     gender: 'Male',
   },
+  multiCitiestripRequest: {
+    travelFrom: ['Butare', 'Musanze'],
+    travelTo: ['Musanze', 'Rusizi'],
+    travelDate: ['2020-08-09', '2020-08-16'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiestripRequestGreaterThan3OrLessThan2: {
+    travelFrom: ['Butare'],
+    travelTo: ['Musanze'],
+    travelDate: ['2020-08-09'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiesDifferentLocation1: {
+    travelFrom: ['Butare', 'Musanze'],
+    travelTo: ['kigali', 'Rusizi'],
+    travelDate: ['2020-08-09', '2020-08-16'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiesDifferentLocation2: {
+    travelFrom: ['Butare', 'Musanze', 'Kayonza'],
+    travelTo: ['Musanze', 'Rusizi', 'Huye'],
+    travelDate: ['2020-08-09', '2020-08-16', '2020-08-24'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiesSameLocation: {
+    travelFrom: ['Butare', 'Musanze', 'Musanze'],
+    travelTo: ['Musanze', 'Musanze', 'Huye'],
+    travelDate: ['2020-08-09', '2020-08-16', '2020-08-24'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiesNotSameArrayLength: {
+    travelFrom: ['Butare', 'Musanze', 'Kayonza'],
+    travelTo: ['Musanze', 'Kayonza'],
+    travelDate: ['2020-08-09', '2020-08-16', '2020-08-24'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiesFirstOriginEqualToDestination: {
+    travelFrom: ['Butare', 'Musanze', 'Kayonza'],
+    travelTo: ['Musanze', 'Kayonza', 'Butare'],
+    travelDate: ['2020-08-09', '2020-08-16', '2020-08-24'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  multiCitiesGreaterThanDate: {
+    travelFrom: ['Butare', 'Musanze'],
+    travelTo: ['Musanze', 'Rusizi'],
+    travelDate: ['2020-08-29', '2020-08-16'],
+    travelReason: 'business meeting',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
+  invalidMultiCitiesTripRequest: {
+    travelFrom: ['Butare'],
+    travelTo: 'Musanze',
+    travelDate: ['2020-02-25', '2020-02-26'],
+    travelReason: '',
+    travelType: 'multi-cities',
+    accommodation: true
+  },
   realLoginDataFromTheDb: {
     email: 'john@doe.com',
     password: 'Helloworld3@'
@@ -152,6 +224,15 @@ export default {
     password: 'Onewaytripreq123@',
     gender: 'Male',
   },
+  oneWayTripRequester1: {
+    firstName: 'John',
+    lastName: 'Doe',
+    username: 'onewaytripreqr2',
+    email: 'onewaytripreqr2@example.com',
+    address: 'Kigali',
+    password: 'Onewaytripreq1234@',
+    gender: 'Male',
+  },
   tripRequesterNoCommentYet: {
     firstName: 'John',
     lastName: 'Doe',
@@ -179,8 +260,16 @@ export default {
     travelTo: 'Butare',
     travelDate: new Date(),
     travelReason: 'business meeting',
-    travelType: 'One-way',
+    travelType: 'one-way',
     accommodation: true,
+  },
+  oneWayTripRequest2: {
+    travelFrom: 'Nyanza',
+    travelTo: 'Butare',
+    travelDate: '2020-05-01',
+    travelReason: 'vaccations',
+    travelType: 'one-way',
+    accommodation: true
   },
   realLoginDataFromDbVerifiedUser: {
     email: 'john@doe.com',
@@ -281,13 +370,13 @@ export default {
     gender: 'Female',
   },
   returnTripRequest: {
-    travelFrom: 'kigali',
-    travelTo: 'Butare',
-    travelDate: '2020-08-05',
-    returnDate: '2021-09-14T15:12:59.360Z',
-    travelReason: 'business meeting',
+    travelFrom: 'Gisenyi',
+    travelTo: 'Musanze',
+    travelDate: new Date(Date.now() + 432000000),
+    returnDate: new Date(Date.now() + 518400000),
+    travelReason: 'vacation',
     travelType: 'return-trip',
-    accommodation: true,
+    accommodation: true
   },
   returnTripInvalidType: {
     travelFrom: 'kigali',
@@ -392,7 +481,7 @@ export default {
     accommodation: true
   },
   duplicateUpdate: {
-    travelDate: new Date()
+    travelDate: '2020-06-01',
   },
   updateUser: {
     firstName: 'Peter',
@@ -455,17 +544,17 @@ export default {
     travelTo: 'Rubavu',
     travelDate: '2020-06-20',
     travelReason: 'business meeting',
-    travelType: 'One-way',
+    travelType: 'one-way',
     accommodation: true,
   },
   unexistantUserId: 1000,
   invalidUserId: 'abcd',
   tripRequestSample1: {
-    travelFrom: 'Musanze',
-    travelTo: 'Rubavu',
-    travelDate: '2020-06-25',
+    travelFrom: 'kampala',
+    travelTo: 'Butare',
+    travelDate: '2020-06-12',
     travelReason: 'business meeting',
-    travelType: 'One-way',
+    travelType: 'one-way',
     accommodation: true,
   },
   tripRequestSample2: {
@@ -473,7 +562,7 @@ export default {
     travelTo: 'Rubavu',
     travelDate: '2020-06-26',
     travelReason: 'business meeting',
-    travelType: 'One-way',
+    travelType: 'one-way',
     accommodation: true,
   },
   requester3Account: {

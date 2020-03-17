@@ -13,16 +13,15 @@ const { errorResponse } = responseHandlers;
 const { badRequest } = statusCodes;
 
 const {
-  invalidTravelType,
-  invalidReturnDate,
+  invalidTravelType, invalidReturnDate, 
+  travelFromEqualError, travelDateError, arrayLengthError,
   accommodationNotExist,
   tripRequestNotExist,
+  travelFromNETravelTo
 } = customMessages;
-
-const { decodeToken } = utils;
-
-const {
-  validateOneWayTripRequest,
+const { 
+  validationOTripRequest, 
+  validationMTripRequest,
   validateReturnDate,
   validateTripRequestsSearch,
   validateTripRequestsSearchField,
@@ -30,6 +29,7 @@ const {
   validateRequestId,
   validateUserId
 } = Validators;
+const { decodeToken } = utils;
 
 const {
   getAccommodationById,
@@ -77,7 +77,6 @@ const validateSignup = (user) => {
     allowUnknown: true
   });
 };
-
 
 /**
  * @param {object} data
@@ -139,38 +138,112 @@ export const verifyToken = async (req, res, next) => {
     return errorResponse(res, statusCodes.badRequest, customMessages.tokenInvalid);
   }
 };
-/** 
-* @param {object}tripRequestInfo Node/express request
-* @param {object} req Node/express request
-* @param {object} res Node/express response
-* @param {object} next Node/Express Next callback function
-* @returns {Object} Custom response with created trip details
-* @description validates all trip requests
+
+/**
+* @param {object} data
+* @returns {Object} return data in lowercase
 */
-const oneWayHandler = async (tripRequestInfo, req, res, next) => {
-  try {
-    const validationOutput = await validateOneWayTripRequest(tripRequestInfo);
-    validationOutput.userId = req.sessionUser.id;
-    req.body = validationOutput;
-    return next();
-  } catch (validationError) {
-    return errorResponse(res, badRequest, validationError.message);
+const lowerCase = data => `${data}`.toLowerCase();
+
+ /** 
+   * @param {Response} travelFrom 
+   * @param {Response} travelTo 
+   * @param {Response} travelDate
+   * @param {Response} travelType
+   * @returns {Object} Custom response with the new trip request details
+   */
+const arrayErrorChecker = (travelFrom, travelTo, travelDate) => {
+  let error = '';
+  if (travelTo instanceof Array) {
+    if (travelFrom.length !== travelTo.length || travelTo.length !== travelDate.length) {
+      error += `; ${arrayLengthError}`;
+    }  
+    travelTo.forEach(item => {
+      if (lowerCase(travelFrom[0]) === lowerCase(item)) {
+        error += `; ${travelFromNETravelTo}`;
+      }
+    });
   }
+  if (error === '') {
+    error = '';
+  }
+  return error;
 };
-/** 
-* @param {object}tripRequestInfo Node/express request
-* @param {object} req Node/express request
-* @param {object} res Node/express response
-* @param {object} next Node/Express Next callback function
-* @returns {Object} Custom response with created trip details
-* @description validates all trip requests
-*/
+
+ /**
+   * @param {Response} arrayError
+   * @param {Response} errorCheck
+   * @param {Response} travelType
+   * @returns {Object} return error message
+   */
+  const errorCondition = (arrayError, errorCheck, travelType) => {
+    let error = '';
+    if (arrayError && travelType === 'multi-cities') {
+      error += arrayError;
+    }
+    if (errorCheck && travelType === 'multi-cities') {
+      error += errorCheck;
+    }
+    if (error === '') { 
+      error = '';
+    }
+    error = error.indexOf('; ') === 0 ? error.replace('; ', '') : error;
+    return error;
+  };
+
+  /** 
+   * @param {Response} two 
+   * @param {Response} one 
+   * @returns {Object} return one if two does not exist
+   */
+  const isSet = (two, one) => {
+    if (two !== 'undefined') {
+      return two;
+    } else {
+      return one;
+    }
+  };
+
+ /** 
+   * @param {Response} travelFrom 
+   * @param {Response} travelTo 
+   * @param {Response} travelDate
+   * @returns {Object} Custom response with the new trip request details
+   */
+  const createTripRequestCondition = (travelFrom, travelTo, travelDate) => {
+    let error = '';
+    if (lowerCase(travelFrom[1]) !== lowerCase(travelTo[0]) 
+    || isSet(lowerCase(travelFrom[2]), lowerCase(travelTo[1])) !== lowerCase(travelTo[1])) {
+      error += `; ${travelFromEqualError}`;
+    } 
+    if (travelDate[0] > travelDate[1] || travelDate[1] > travelDate[2]) {
+      error += `; ${travelDateError}`;
+    } 
+    
+  if (lowerCase(travelTo[0]) === lowerCase(travelTo[1]) 
+  || lowerCase(travelTo[1]) === lowerCase(travelTo[2])
+  || lowerCase(travelTo[0]) === lowerCase(travelTo[2])) {
+error += `; ${travelFromNETravelTo}`;
+}
+    if (error === '') {
+      error = '';
+    }
+      return error;
+  };
+
+ /** 
+ * @param {object}tripRequestInfo Node/express request
+ * @param {object} req Node/express request
+ * @param {object} res Node/express response
+ * @param {object} next Node/Express Next callback function
+ * @returns {Object} Custom response with created trip details
+ */
 const returnTripHandler = async (tripRequestInfo, req, res, next) => {
   const errorMessage = [];
   let errors = '';
   try {
     const commonInfo = _.omit(tripRequestInfo, 'returnDate');
-    req.body = await validateOneWayTripRequest(commonInfo);
+    req.body = await validationOTripRequest(commonInfo);
   } catch (err) {
     errorMessage.push(err.message);
   }
@@ -191,6 +264,38 @@ const returnTripHandler = async (tripRequestInfo, req, res, next) => {
 };
 
 /**
+ * @param {Request} travelType return travel type
+ * @param {Response} tripRequestInfo return req bodies
+ * @param {Response} res Node/express response
+ * @returns {Object} return specific validation callback
+ */
+const travelTypeHandler = async (travelType, tripRequestInfo) => {
+  let validationType = null;
+  switch (travelType) {
+      case 'one-way':
+      validationType = await validationOTripRequest(tripRequestInfo);
+      return validationType;
+      case 'multi-cities':
+      validationType = await validationMTripRequest(tripRequestInfo);
+      return validationType;   
+    default:
+      return null;
+  }
+};
+
+/**
+ * @param {Request} msg Node/express request
+ * @returns {Object} Custom response with created trip details
+ */
+const validationErr = (msg) => {
+if (msg === undefined) {
+  return '';
+} else {
+  return msg;
+}
+};
+
+/**
  * @param {Request} req Node/express request
  * @param {Response} res Node/express response
  * @param {NextFunction} next Node/Express Next callback function
@@ -200,19 +305,29 @@ const returnTripHandler = async (tripRequestInfo, req, res, next) => {
 const isTripRequestValid = async (req, res, next) => {
   const tripRequestInfo = req.body;
   let { travelType } = tripRequestInfo;
-  if (!travelType) {
-    return errorResponse(res, badRequest, invalidTravelType);
-  }
+  const { travelFrom, travelTo, travelDate } = tripRequestInfo;
   const whiteSpaces = /\s+/g;
   travelType = String(travelType).replace(whiteSpaces, ' ').trim().toLowerCase();
-  switch (travelType) {
-    case 'one-way':
-      return oneWayHandler(tripRequestInfo, req, res, next);
-    case 'return-trip':
-      return returnTripHandler(tripRequestInfo, req, res, next);
-    default:
-      return errorResponse(res, badRequest, invalidTravelType);
-  }
+  if (travelType === 'return-trip') {
+    return returnTripHandler(tripRequestInfo, req, res, next);
+  } 
+  let error = '';
+    try {
+      const arrayError = await arrayErrorChecker(travelFrom, travelTo, travelDate);
+  const errorCheck = await createTripRequestCondition(travelFrom, travelTo, travelDate);
+  error = await errorCondition(arrayError, errorCheck, travelType);
+      const validationOutput = await travelTypeHandler(travelType, tripRequestInfo);
+      if (error !== '') { throw error; }
+      if (validationOutput === null) {
+        return errorResponse(res, badRequest, invalidTravelType);
+      }
+      validationOutput.userId = req.sessionUser.id;
+      req.body = validationOutput;
+      return next();
+    } catch (validationError) {
+      const err = validationErr(validationError.message);
+      return errorResponse(res, badRequest, `${err}${error}`);
+    }   
 };
 
 /**
@@ -270,7 +385,7 @@ const checkAccommodationBookingInfo = async (req, res, next) => {
   } catch (validationError) {
     return errorResponse(res, badRequest, validationError.message);
   }
-};
+}; 
 
 /** 
 * @param {object} req Node/express request
@@ -319,5 +434,5 @@ export {
   isTripRequestsSearchValid,
   checkAccommodationBookingInfo,
   handleRequestStatusUpdate,
-  handleRequestReassignment,
+  handleRequestReassignment
 };

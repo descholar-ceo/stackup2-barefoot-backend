@@ -56,7 +56,7 @@ export default class Authentication {
         req.sessionUser = decodedToken;
         return next();
       });
-    } catch (error) {
+    } catch (error) { 
       return errorResponse(res, badRequest, tokenInvalid);
     }
   }

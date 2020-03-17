@@ -6,11 +6,12 @@ import customMessages from '../../src/utils/customMessages';
 import statusCodes from '../../src/utils/statusCodes';
 import mockData from '../data/mockData';
 import loginToken from '../controllers/authentication.test';
-import { INSERT_SAMPLE_REQUEST, UPDATE_USER_8_TO_MANAGER, INSERT_REQUEST, INSERT_USER, SELECT_REQUEST } from '../data/insert-sample-data-in_db';
+import { INSERT_SAMPLE_REQUEST, UPDATE_USER_8_TO_MANAGER, INSERT_REQUEST_U1, INSERT_REQUEST_U2, INSERT_USER, SELECT_REQUEST } from '../data/insert-sample-data-in_db';
 
 const { sequelize } = models;
 const {
   oneWayTripRequest,
+  oneWayTripRequest2,
   oneWayTripRequester,
   tripRequesterNoCommentYet,
   returnTripRequest,
@@ -28,19 +29,21 @@ const {
   updator,
   loginSuperUser, 
   bookAccommodation,
+  tripRequestSample1
 } = mockData;
 const {
   invalidTravelType,
   oneWayTripRequestCreated,
   tokenInvalid,
   tokenMissing,
-  userSignupSuccess,
+  tripRequestCreated,
+  userSignupSuccess, 
   accountNotVerified,
   verifyMessage,
   duplicateTripRequest,
   noPlacesRetrieved,
   placesRetrieved,
-  commentAdded,
+  commentAdded, 
   requestIdMustBeANumber,
   commentUpdatedSuccess,
   isNotMyComment,
@@ -69,9 +72,9 @@ const {
   notYourRequest,
   invalidBookAccommodationTripRequestId,
   accommodationNotExist,
-  tripRequestNotExist,
+  tripRequestNotExist, 
   bookedAccommodation,
-  duplicateAccommodationBookings,
+  duplicateAccommodationBookings
 } = customMessages;
 const {
   created,
@@ -83,6 +86,7 @@ const { wrongToken } = testingTokens;
 chai.use(chaiHttp);
 chai.should();
 
+let tripId;
 let authToken = '';
 let authTokenNoCommentYet = '';
 let authTokenManagerToVerify = '';
@@ -264,7 +268,7 @@ describe('One way trip request', () => {
           expect(data);
           expect(data).to.be.an('object');
           expect(message).to.be.a('string');
-          expect(message).to.equal(oneWayTripRequestCreated);
+          expect(message).to.equal(tripRequestCreated);
           requesterTripRequests.push(data);
           done();
         });
@@ -284,7 +288,8 @@ describe('One way trip request', () => {
           expect(data);
           expect(data).to.be.an('object');
           expect(message).to.be.a('string');
-          expect(message).to.equal(oneWayTripRequestCreated);
+          expect(message).to.equal(tripRequestCreated);
+          requesterTripRequests.push(data);
           done();
         });
     });
@@ -541,8 +546,13 @@ describe('Return trip request', () => {
 });
 
   describe('Testing most traveled destinations', () => {
-    before('Insert sample request in db', () => {
-      sequelize.query(INSERT_SAMPLE_REQUEST);
+    before('Insert sample request in db', async () => {
+      const seq1 = await sequelize.query(INSERT_SAMPLE_REQUEST);
+      if (seq1) {
+        await sequelize.query(`
+      INSERT INTO trips ("requestId","travelFrom","travelTo","travelDate","createdAt","updatedAt")
+      VALUES(${seq1[0][0].id},'Tokyo','Seoul',NOW(),NOW(),NOW())`);
+      }
     });
     it(`Requesting the most traveled destinations, should return an object with 200 
   status code, and array containing data`, (done) => {
@@ -611,8 +621,8 @@ describe('Return trip request', () => {
   return an object with message and data properties with 200 status code`, (done) => {
       chai
         .request(server)
-        .get('/api/trips/comment?requestId=5&page=1')
-        .set('Authorization', authTokenNoCommentYet)
+        .get(`/api/trips/comment?requestId=${requestId}&page=1`)
+        .set('Authorization', authToken)
         .end((err, res) => {
           if (err) done(err);
           expect(res).to.have.status(notFound);
@@ -688,7 +698,7 @@ describe('Return trip request', () => {
   401 status code and an object containing error message`, (done) => {
       chai
         .request(server)
-        .post('/api/trips/5/comment')
+        .post('/api/trips/3/comment') 
         .set('Authorization', authToken)
         .send({ comment: 'Comment on other users while I am bot a manager' })
         .end((err, res) => {
@@ -699,7 +709,6 @@ describe('Return trip request', () => {
           done();
         });
     });
-
     it(`Posting comment with weird data, expect it to return a response of 
   401 status code and an object containing error message`, (done) => {
       chai
@@ -1178,7 +1187,7 @@ describe('Search trip requests', () => {
       .request(server)
       .get('/api/trips/search')
       .set('Authorization', authToken)
-      .query({ ...searchTripRequests, search: '2019-01-01' })
+      .query(searchTripRequests)
       .end((err, res) => {
         if (err) done(err);
         const { data, message } = res.body;
@@ -1186,8 +1195,6 @@ describe('Search trip requests', () => {
         expect(data);
         expect(data).to.be.an('array');
         expect(message);
-        expect(message).to.be.a('string');
-        expect(message).to.equal(emptySearchResult);
         done();
       });
   });
@@ -1398,11 +1405,15 @@ describe('Trips stats', () => {
 describe('update open travel request', () => {
   let notOpenId;
   before('Insert sample request in db', () => {
-    sequelize.query(INSERT_REQUEST)
-    .then(() => {
-      sequelize.query(SELECT_REQUEST)
-      .then((request) => {
-        [notOpenId] = request;
+    sequelize.query(INSERT_REQUEST_U1)
+    .then((id) => {
+      sequelize.query(`INSERT INTO trips ("requestId","travelFrom","travelTo","travelDate","createdAt","updatedAt")
+      VALUES(${id[0][0].id},'Tokyo','Seoul','2020-07-18',NOW(),NOW())`)
+      .then(() => {
+        sequelize.query(SELECT_REQUEST)
+        .then((request) => {
+          [notOpenId] = request;
+        });
       });
     });
   });
@@ -1454,7 +1465,7 @@ describe('update open travel request', () => {
       .end((err, res) => {
         if (err) done(err);
         expect(res).to.have.status(ok);
-        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object'); 
         expect(res.body).to.have.property('message').to.equal(requestUpdated);
         done();
       });

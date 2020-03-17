@@ -1,19 +1,19 @@
 
 module.exports = {
-  up: (queryInterface, Sequelize) => queryInterface.createTable('requests', {
+  up: (queryInterface, Sequelize) => queryInterface.createTable('trips', {
     id: {
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
       type: Sequelize.INTEGER
     },
-    userId: {
+    requestId: {
       allowNull: false,
       type: Sequelize.INTEGER,
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE',
       references: {
-        model: 'users',
+        model: 'requests',
         key: 'id',
       },
     },
@@ -33,22 +33,6 @@ module.exports = {
       allowNull: true,
       type: Sequelize.DATEONLY
     },
-    travelReason: {
-      allowNull: false,
-      type: Sequelize.STRING
-    },
-    travelType: {
-      allowNull: false,
-      type: Sequelize.STRING
-    },
-    status: {
-      type: Sequelize.STRING,
-      defaultValue: 'pending'
-    },
-    accommodation: {
-      allowNull: false,
-      type: Sequelize.BOOLEAN,
-    },
     createdAt: {
       allowNull: false,
       type: Sequelize.DATE
@@ -57,12 +41,6 @@ module.exports = {
       allowNull: false,
       type: Sequelize.DATE
     }
-  }, {
-    uniqueKeys: {
-      userIdDate: {
-          fields: ['userId', 'travelDate']
-      }
-  }
-  }),
-  down: (queryInterface, Sequelize) => queryInterface.dropTable('requests')
+    }, {}),
+  down: (queryInterface, Sequelize) => queryInterface.dropTable('trips')
 };

@@ -13,10 +13,29 @@ const {
   tripRequestSample1,
   tripRequestSample2,
   requester3Account,
-  loginSuperUser
+  loginSuperUser,
+  multiCitiestripRequest,
+  multiCitiestripRequestGreaterThan3OrLessThan2,
+  multiCitiesDifferentLocation1,
+  multiCitiesDifferentLocation2,
+  multiCitiesGreaterThanDate,
+  invalidMultiCitiesTripRequest,
+  multiCitiesNotSameArrayLength,
+  multiCitiesFirstOriginEqualToDestination,
+  oneWayTripRequester1,
+  duplicateUpdate
 } = mockData;
-const { oneWayTripRequestCreated, verifyMessage } = customMessages;
-const { created, ok } = statusCodes;
+const { 
+  duplicateTripRequest,
+  tripRequestCreated, 
+  verifyMessage,
+  arrayLengthError,
+  travelFromEqualError,
+  travelDateError,
+  travelFromNETravelTo,
+  requestUpdated
+} = customMessages;
+const { created, ok, badRequest } = statusCodes;
 const { findUserByEmailOrUsername } = UserService;
 
 chai.use(chaiHttp);
@@ -26,6 +45,7 @@ let authToken = '';
 let manager1Token = '';
 let tripId = '';
 const unexistantTripId = 200;
+let requestMId = '';
 let userId;
 let requesterToken;
 let managerId;
@@ -52,8 +72,8 @@ describe('Manager approves and reject trip request', () => {
   it('Should verify requester account', (done) => {
     chai.request(server)
       .get(`/api/auth/verify?token=${authToken.split(' ').pop()}`)
-      .end((err, res) => {
-        if (err) done(err);
+      .end((err, res) => { 
+        if (err) done(err); 
         const { message } = res.body;
         expect(res.status).to.equal(ok);
         expect(message).to.be.a('string');
@@ -84,7 +104,14 @@ describe('Manager approves and reject trip request', () => {
       .request(server)
       .post('/api/trips')
       .set('Authorization', requesterToken)
-      .send(tripRequestSample1)
+      .send({
+        travelFrom: 'Lagos',
+        travelTo: 'Miami',
+        travelDate: '2020-08-08',
+        travelReason: 'business meeting',
+        travelType: 'one-way',
+        accommodation: true,
+      })
       .end((err, res) => {
         if (err) done(err);
         const { message, data } = res.body;
@@ -93,11 +120,12 @@ describe('Manager approves and reject trip request', () => {
         expect(data);
         expect(data).to.be.an('object');
         expect(message).to.be.a('string');
-        expect(message).to.equal(oneWayTripRequestCreated);
+        expect(message).to.equal(tripRequestCreated);
         tripId = data.id;
         done();
       });
   });
+  
   it('User approving request is not a manager, should return 401', (done) => {
     chai
       .request(server)
@@ -228,7 +256,7 @@ describe('Manager approves and reject trip request', () => {
         chai.expect(id).to.be.a('number');
         done();
       })
-      .catch(error => { console.log(error); done(); });
+      .catch(error => { done(); });
   });
   it('Should update the profile of a requester by setting a line manager', (done) => {
     chai
@@ -348,10 +376,10 @@ describe('Manager assigns trip request to another manager', () => {
         const { message, data } = res.body;
         expect(res.status).to.equal(created);
         expect(message);
-        expect(data);
+        expect(data); 
         expect(data).to.be.an('object');
         expect(message).to.be.a('string');
-        expect(message).to.equal(oneWayTripRequestCreated);
+        expect(message).to.equal(tripRequestCreated);
         tripId = data.id;
         done();
       });
@@ -364,7 +392,7 @@ describe('Manager assigns trip request to another manager', () => {
         chai.expect(id).to.be.a('number');
         done();
       })
-      .catch(error => { console.log(error); done(); });
+      .catch(error => { done(); });
   });
   it('Manager assigning request that does not exist should return 404', (done) => {
     chai
@@ -573,3 +601,148 @@ describe('Manager assigns trip request to another manager', () => {
       });
   });
 });
+
+describe('Multi City Trip Request', () => {
+  it('should create a multi cities trip request', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiestripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        requestMId = data.id;
+        expect(res.status).to.equal(created);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(tripRequestCreated);
+        done();
+      });
+  });
+
+  it('should not create a multi cities trip request if requests greater than 2', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiestripRequestGreaterThan3OrLessThan2)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        done();
+      });
+  });
+
+  it('Request first destination should be the same as the second origin', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiesDifferentLocation1)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(travelFromEqualError);
+        done();
+      });
+  });
+  it('Request second destination should be the same as the third origin', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiesDifferentLocation2)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(travelFromEqualError);
+        done();
+      });
+  });
+  it('Request first date should not be greater than the second', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiesGreaterThanDate)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(travelDateError);
+        done();
+      });
+  });
+  it('Request travelFrom, travelTo and travelDate, should all hold the same amount of data', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiesNotSameArrayLength)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(arrayLengthError);
+        done();
+      });
+  });
+  it('Request first origin should not equal to any destination', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiesFirstOriginEqualToDestination)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(travelFromNETravelTo);
+        done();
+      });
+  });
+  it('should not create a duplicate multi cities request', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(multiCitiestripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(duplicateTripRequest);
+        done();
+      });
+  });
+  it('should not create a multi cities request with invalid values', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', requesterToken)
+      .send(invalidMultiCitiesTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res.status).to.equal(badRequest);
+        done();
+      });
+  });
+});
+

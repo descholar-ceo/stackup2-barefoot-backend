@@ -2,10 +2,6 @@
 module.exports = (sequelize, DataTypes) => {
   const request = sequelize.define('request', {
     userId: DataTypes.INTEGER,
-    travelFrom: DataTypes.STRING,
-    travelTo: DataTypes.STRING,
-    travelDate: DataTypes.DATEONLY,
-    returnDate: DataTypes.DATEONLY,
     travelReason: DataTypes.STRING,
     travelType: DataTypes.STRING,
     status: DataTypes.STRING,
@@ -22,6 +18,10 @@ module.exports = (sequelize, DataTypes) => {
     });
     request.belongsTo(models.user, {
       foreignKey: 'handledBy'
+    });
+    request.hasMany(models.trips, {
+      foreignKey: 'requestId',
+      onDelete: 'CASCADE'
     });
   };
   return request;

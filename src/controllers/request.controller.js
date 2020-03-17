@@ -11,24 +11,27 @@ import UserService from '../services/authentication.service';
 import tripRequestsStatus from '../utils/tripRequestsStatus.util';
 
 const {
-  handleTripRequest,
+  handleTripRequest, 
+  handleSubTripRequest, handleSearchTripRequests,
+  getTripsStats, getAllRequests,
   getMostTraveledDestinations,
-  getAllRequests,
-  updateTripRequest,
+  updateTripRequest1,
+  updateTripRequest2,
+  updateTripRequestStatus, reassignTripRequest,
+  getTripRequestById
 } = RequestService;
-const { viewStatsUnauthorized, requesterNotRegistered, emptySearchResult, } = customMessages;
-const { created, badRequest, ok, notFound, conflict, unAuthorized, forbidden } = statusCodes;
+const {   
+  tripRequestCreated,
+  duplicateTripRequest,
+  viewStatsUnauthorized, requesterNotRegistered, emptySearchResult } = customMessages;
+  const { created, badRequest, ok, notFound, conflict, unAuthorized, forbidden } = statusCodes;
 const { successResponse, errorResponse, updatedResponse } = responseHandlers;
 const { REQUESTER, MANAGER } = userRoles;
 const {
-  handleSearchTripRequests,
-  getTripsStats,
-  updateTripRequestStatus,
-  reassignTripRequest
-} = RequestService;
-const {
   validateTripsStatsTimeframe,
   validateRequesterInfo,
+  func, 
+  findUserDate
 } = Validators;
 const { getUserById } = UserService;
 const { ACCEPTED, REJECTED } = tripRequestsStatus;
@@ -44,20 +47,35 @@ export default class RequestController {
    * @description creates trip requests
    */
   static async createTripRequest(req, res) {
-    try {
       const requestData = req.body;
-      const newTrip = await handleTripRequest(requestData);
-      return successResponse(
-        res,
-        created,
-        customMessages.oneWayTripRequestCreated,
-        undefined,
-        newTrip
-      );
-    } catch (dbError) {
-      return errorResponse(res, badRequest, customMessages.duplicateTripRequest);
+      const { travelType, travelFrom, travelTo, travelDate, returnDate } = requestData;
+      if (await findUserDate(travelDate, req.sessionUser.id)) {
+        return errorResponse(res, badRequest, duplicateTripRequest);
+      }
+      const data1 = omit({ ...requestData }, ['travelDate', 'travelTo', 'travelFrom', 'returnDate']);
+      const newTrip = await handleTripRequest(data1);
+      const reqId = newTrip.id;
+        let subTrip = null;
+        if (travelType === 'multi-cities') {
+          const arr = func(travelFrom, travelTo, travelDate, reqId);
+          arr.forEach(async item => await handleSubTripRequest(item));
+          const idObj = {
+            id: reqId,
+          }
+          subTrip = [...arr, idObj];
+        } else {
+          const data2 = {
+            travelFrom,
+            travelTo,
+            travelDate,
+            returnDate, 
+            requestId: reqId
+          };
+          subTrip = await handleSubTripRequest(data2);
+        }
+        console.log(subTrip);
+        return successResponse(res, created, tripRequestCreated, undefined, subTrip);
     }
-  }
 
   /**
    * @param {object} req
@@ -114,14 +132,15 @@ export default class RequestController {
  * @description update open trip request
  */
   static async updateTripRequest(req, res) {
-    const requestData = req.body;
-    const { requestId } = req.params;
-    try {
-      await updateTripRequest(requestData, requestId);
-      return updatedResponse(res, ok, customMessages.requestUpdated);
-    } catch (err) {
-      return errorResponse(res, badRequest, customMessages.duplicateTripRequest);
-    }
+      const requestData = req.body;
+      const { travelDate } = requestData;
+      const { requestId } = req.params;
+      if (await findUserDate(travelDate, req.sessionUser.id)) {
+        return errorResponse(res, badRequest, duplicateTripRequest);
+      }
+        await updateTripRequest1(requestData, requestId);
+          await updateTripRequest2(requestData, requestId);
+        return updatedResponse(res, ok, customMessages.requestUpdated);
   }
 
   /**
