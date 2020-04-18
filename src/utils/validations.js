@@ -8,15 +8,22 @@ import utils from './authentication.utils';
 import AccommodationService from '../services/accommodation.service';
 import tripRequestsService from '../services/request.service';
 
-const { errorResponse } = responseHandlers;
 
-const { badRequest } = statusCodes;
 
 const {
   invalidTravelType,
   invalidReturnDate,
   accommodationNotExist,
   tripRequestNotExist,
+  invalidStatus,
+  invlidTypeId
+} = customMessages;
+
+
+const { errorResponse, successResponse } = responseHandlers;
+const { badRequest, ok } = statusCodes;
+const {
+  emptyInAppNotification,
 } = customMessages;
 
 const { decodeToken } = utils;

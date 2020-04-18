@@ -1,6 +1,6 @@
 import models from '../database/models';
 
-const { booking, accommodation } = models;
+const { booking, accommodation, request } = models;
 
 /**
  * @description Trip requests service
@@ -35,6 +35,18 @@ export default class RequestService {
       where: {
         id,
       }
+    });
+  }
+
+   /**
+   *@description retrives accommodation details by id
+   * @param {Object} id unique accommodation id
+   * @returns {Object} accommodation booking details
+    */
+   static getBookingById(id) {
+     return booking.findOne({
+       where: { id },
+       include: [{ model: accommodation, as: 'accommodation' }, { model: request, as: 'request' }]
     });
   }
 }

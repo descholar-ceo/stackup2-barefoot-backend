@@ -14,14 +14,16 @@ const { errorResponse } = responseHandlers;
 const { unAuthorized, notFound } = statusCodes;
 
 const {
-  commentOnOthersReqNotAdmin,
-  isNotMyComment,
-  commentNoFound,
-  requestNotExists,
   emptyCommentBody,
   requestIdMustBeANumber,
   viewCmtNotMineReq,
   pageMustBeANumber
+} = customMessages;
+const {
+  commentOnOthersReqNotAdmin,
+  isNotMyComment,
+  commentNoFound,
+  requestNotExists
 } = customMessages;
 
 const { getCommentByPk } = CommentService;

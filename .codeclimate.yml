@@ -1,0 +1,4 @@
+exclude_patterns:
+  - "src/database/models"
+  - "src/services"
+  - "tests/"

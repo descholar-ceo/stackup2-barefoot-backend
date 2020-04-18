@@ -9,28 +9,30 @@ import userRoles from '../utils/userRoles.utils';
 import Validators from '../utils/validators';
 import UserService from '../services/authentication.service';
 import tripRequestsStatus from '../utils/tripRequestsStatus.util';
+import notificationService from '../services/notification.service';
+import sendEmail from '../services/sendEmail.service';
+import handleEmailNotifications from '../utils/handleEmailNotifications.util';
+import notificationType from '../utils/notificationType.utils';
+import { createTripMessage, managerEmail, updatedRequestEmailRequester, updatedRequestEmailManager } from '../utils/emailMessages';
 
-const {
-  handleTripRequest,
-  getMostTraveledDestinations,
-  getAllRequests,
-  updateTripRequest,
+
+const { TRIP_CREATED, TRIP_UPDATED, TRIP_APPROVED, TRIP_REJECTED,
+  TRIP_ASSIGNED } = notificationType;
+const { handleTripRequest, getMostTraveledDestinations, getAllRequests, findTrip, updateTripRequest
 } = RequestService;
-const { viewStatsUnauthorized, requesterNotRegistered, emptySearchResult, } = customMessages;
+const { viewStatsUnauthorized, requesterNotRegistered, emptySearchResult,
+  oneWayTripRequestCreated, emailTitleRequestUpdate } = customMessages;
 const { created, badRequest, ok, notFound, conflict, unAuthorized, forbidden } = statusCodes;
 const { successResponse, errorResponse, updatedResponse } = responseHandlers;
+const { createInAppNotification } = notificationService;
+const { findUserByEmail, getUserById } = UserService;
 const { REQUESTER, MANAGER } = userRoles;
-const {
-  handleSearchTripRequests,
-  getTripsStats,
-  updateTripRequestStatus,
-  reassignTripRequest
+const { handleSearchTripRequests, getTripsStats, updateTripRequestStatus, reassignTripRequest
 } = RequestService;
 const {
   validateTripsStatsTimeframe,
   validateRequesterInfo,
 } = Validators;
-const { getUserById } = UserService;
 const { ACCEPTED, REJECTED } = tripRequestsStatus;
 
 /**
@@ -46,14 +48,16 @@ export default class RequestController {
   static async createTripRequest(req, res) {
     try {
       const requestData = req.body;
+      const currentUser = req.sessionUser;
+      const { lineManager } = req.sessionUser;
+      let manager = await getUserById(lineManager);
+      manager = manager.dataValues;
       const newTrip = await handleTripRequest(requestData);
-      return successResponse(
-        res,
-        created,
-        customMessages.oneWayTripRequestCreated,
-        undefined,
-        newTrip
-      );
+      const tripLink = `${process.env.APP_URL}/api/trips/${newTrip.id}`;
+      await handleEmailNotifications(currentUser, createTripMessage, tripLink, 'Trip request created');
+      await handleEmailNotifications(manager, managerEmail, tripLink, 'Trip request created');
+      await createInAppNotification(currentUser, newTrip.id, TRIP_CREATED);
+      return successResponse(res, created, oneWayTripRequestCreated, undefined, newTrip);
     } catch (dbError) {
       return errorResponse(res, badRequest, customMessages.duplicateTripRequest);
     }
@@ -96,10 +100,7 @@ export default class RequestController {
       if (foundReqs.length === 0) {
         errorResponse(res, notFound, customMessages.noRequestsFoundOnThisPage);
       } else {
-        const resultToSend = {
-          totalRequests: reqNum,
-          foundRequests: foundReqs
-        };
+        const resultToSend = { totalRequests: reqNum, foundRequests: foundReqs };
         successResponse(res, ok, customMessages.requestsRetrieved, null, resultToSend);
       }
     } else {
@@ -114,10 +115,20 @@ export default class RequestController {
  * @description update open trip request
  */
   static async updateTripRequest(req, res) {
+    const currentUser = req.sessionUser;
     const requestData = req.body;
+    const requesterEmail = updatedRequestEmailRequester;
+    const emailManager = updatedRequestEmailManager;
     const { requestId } = req.params;
+
+    const currentLineManager = await getUserById(currentUser.lineManager);
+    const lineManager = currentLineManager.dataValues;
+    const link = `${process.env.APP_URL}/api/trips/${requestId}`;
     try {
       await updateTripRequest(requestData, requestId);
+      await createInAppNotification(currentUser, requestId, TRIP_UPDATED);
+      await handleEmailNotifications(currentUser, requesterEmail, link, emailTitleRequestUpdate);
+      await handleEmailNotifications(lineManager, emailManager, link, emailTitleRequestUpdate);
       return updatedResponse(res, ok, customMessages.requestUpdated);
     } catch (err) {
       return errorResponse(res, badRequest, customMessages.duplicateTripRequest);
@@ -207,10 +218,7 @@ export default class RequestController {
       const reqParams = req.query;
       const { requesterId } = await validateRequesterInfo(reqParams);
       const timeframe = omit(reqParams, ['requesterId']);
-      const {
-        startDate,
-        endDate,
-      } = await validateTripsStatsTimeframe(timeframe);
+      const { startDate, endDate } = await validateTripsStatsTimeframe(timeframe);
       const isUserRegistered = !!await getUserById(requesterId);
       if (!isUserRegistered) {
         return errorResponse(res, badRequest, requesterNotRegistered);
@@ -235,6 +243,9 @@ export default class RequestController {
    */
   static async approveTripRequest(req, res) {
     const { tripRequestId } = req.params;
+    const currentUser = req.sessionUser;
+    let manager = await getUserById(currentUser.lineManager);
+    manager = manager.dataValues;
     if (req.tripRequestCurrentStatus === ACCEPTED) {
       return errorResponse(res, conflict, customMessages.tripRequestAlreadyApproved);
     }
@@ -243,6 +254,7 @@ export default class RequestController {
     }
     const handledBy = req.sessionUser.id;
     await updateTripRequestStatus(tripRequestId, ACCEPTED, handledBy);
+    await createInAppNotification(currentUser, tripRequestId, TRIP_APPROVED);
     return successResponse(res, ok, customMessages.requestApprovalSuccess, undefined, undefined);
   }
 
@@ -254,10 +266,12 @@ export default class RequestController {
    */
   static async rejectTripRequest(req, res) {
     const { tripRequestId } = req.params;
+    const currentUser = req.sessionUser;
     if (req.tripRequestCurrentStatus === REJECTED) {
       return errorResponse(res, conflict, customMessages.tripRequestAlreadyRejected);
     }
     await updateTripRequestStatus(tripRequestId, REJECTED, req.sessionUser.id);
+    await createInAppNotification(currentUser, tripRequestId, TRIP_REJECTED);
     return successResponse(res, ok, customMessages.requestRejectionSuccess, undefined, undefined);
   }
 
@@ -270,10 +284,12 @@ export default class RequestController {
   static async assignTripRequest(req, res) {
     const { tripRequestId } = req.params;
     const newManagerId = req.newManager.id;
+    const currentUser = req.sessionUser;
     if (newManagerId === req.tripRequestData.handledBy) {
       return errorResponse(res, conflict, customMessages.tripRequestReassignConflict);
     }
     await reassignTripRequest(tripRequestId, newManagerId);
+    await createInAppNotification(currentUser, tripRequestId, TRIP_ASSIGNED);
     return successResponse(
       res,
       ok,

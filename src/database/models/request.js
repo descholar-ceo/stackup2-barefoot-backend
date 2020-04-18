@@ -17,12 +17,11 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'requestId',
       onDelete: 'CASCADE'
     });
-    request.belongsTo(models.user, {
-      foreignKey: 'userId'
-    });
+    request.belongsTo(models.user, { foreignKey: 'userId' });
     request.belongsTo(models.user, {
       foreignKey: 'handledBy'
     });
+      request.hasMany(models.notification, { as: 'notifications', foreignKey: 'typeId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
   };
   return request;
 };

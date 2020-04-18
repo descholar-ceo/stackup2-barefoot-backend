@@ -12,6 +12,7 @@ const {
 
 const {
     bookAccommodation,
+    getBookedAccommodation
 } = AccommodationController;
 
 const {
@@ -21,5 +22,6 @@ const {
 const router = require('express').Router();
 
 router.post('/book', [isUserLoggedInAndVerified, checkAccommodationBookingInfo], bookAccommodation);
+router.get('/:accommodationId', getBookedAccommodation);
 
 export default router;

@@ -51,6 +51,10 @@ const messages = {
   passwordChangeSuccess: 'Your password has been changed, login with new password',
   changeEmailNotAllowed: 'You cannot change your email, unselect it if you want to continue updating your profile, otherwise you will not be able to continue',
   tokenInvalid: 'Authentication failed. Token is invalid',
+  NotificationDisabled: 'Notification status changed successfully!',
+  allPendingTrip: 'Here are all your unread trip requests',
+  forbiddenAccess: 'You are not allowed to access this data',
+  tripFound: 'Here is your Trip request details',
   tokenMissing: 'Authentication failed. Token is missing',
   userLogoutSuccess: 'Log out successful',
   invalidReturnDate: 'The return date should not be empty, should be greater than travel date and look like 2001-01-01',
@@ -137,7 +141,19 @@ const messages = {
   lineManagerNotFound: 'Sorry, this line manager does not exist',
   userNotlineManager: 'Sorry, the line manager you specified is not a manager',
   cannotBeOwnManager: 'Sorry, you cannot be your own manager',
-  userIdNotString: 'userId must be a string'
+  userIdNotString: 'userId must be a string',
+  notificationAcessDenied: 'You can not access your in-app notifications, please turn it on in order to access them.',
+  invalidMode: 'The mode must be either email or inapp, please change and try again',
+  managerDoesntExist: 'The manager for this requester doesnt exist',
+  lineManagerIsNotAManager: 'The manager you provided is not a manager, Please change and try again',
+  notificationsDisabled: 'You can not view the notifications because you desabled this option',
+  invalidStatus: 'Please provide a valid status, ex: unread, read',
+  invlidTypeId: 'Please provide a valid typeId',
+  emptyInAppNotification: 'Here are all your unread trip requests',
+  emailTitleRequestCreated: 'Trip request created',
+  emailTitleRequestUpdate: 'Trip request updated',
+  accommodationBooked: 'Book accommodation',
+  bookingInfo: 'Accommodation booking details',
 };
 
 export default messages;

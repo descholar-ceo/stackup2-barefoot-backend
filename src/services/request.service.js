@@ -1,7 +1,7 @@
 import models from '../database/models';
 import tripRequestsStatus from '../utils/tripRequestsStatus.util';
 
-const { request, sequelize, Sequelize } = models;
+const { request, sequelize, Sequelize, user } = models;
 const { Op } = Sequelize;
 const { ACCEPTED, } = tripRequestsStatus;
 
@@ -102,12 +102,12 @@ export default class RequestService {
     });
   }
 
-  /**
-*@description update open trip request details in database
-* @param {Object} tripRequestData trip request new data
-* @param {Integer} requestId trip request id
-* @returns {Object} updated trip request details
- */
+     /**
+   *@description update open trip request details in database
+   * @param {Object} tripRequestData trip request new data
+   * @param {Integer} requestId trip request id
+   * @returns {Object} updated trip request details
+    */
   static updateTripRequest(tripRequestData, requestId) {
     if (tripRequestData.travelType === 'one-way') {
       tripRequestData.returnDate = null;
@@ -198,4 +198,45 @@ export default class RequestService {
     );
     return updateHandler;
   }
-}
+
+  /**
+   *@description Saves trip request details in database
+   * @param {string} id of a trip
+   * @returns {Object} all pending requests
+    */
+   static findTrip(id) {
+    return request.findOne({
+      where: { id }
+    });
+   }
+  
+  /**
+   * @param {string} id
+   * @param {boolean} status
+   * @returns {Object} change inAppNotification to false
+    */
+  static async updateInAppNotification(id, status) {
+    const update = await user.update(
+      { inAppNotification: !status },
+      { where: { id } }
+     );
+     return update;
+  }
+
+  /**
+   * @param {string} ids
+   * @returns {Object} an array of requests based on the array of ids passed through params
+    */
+  // static async getTripRequestsFromRequesterId(ids) {
+  //   const requests = request.findAll({
+  //     where: {
+  //       id: {
+  //         [Op.and]: [
+  //           { [Op.in]: ids }
+  //         ]
+  //       },
+  //     }
+  //   });
+  //   return requests;
+  // }
+  }

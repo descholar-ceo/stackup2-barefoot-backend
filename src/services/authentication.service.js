@@ -6,7 +6,9 @@ const { user } = models;
 const sequelize = Sequelize;
 
 /**
- * @param {string} email
+ * @param {string} manager 
+ * @param {string} email 
+ * @param {string} data 
  * @returns {object} Object of messages
  * @description Class to handle users
  */
@@ -19,12 +21,16 @@ export default class UserService {
   static handleSignUp = async (data) => {
     const role = 'requester';
     const isVerified = false;
+    const emailNotification = true;
+    const inAppNotification = true;
     const provider = 'Barefootnomad';
     const newData = {
       ...data,
       provider,
       role,
       isVerified,
+      emailNotification,
+      inAppNotification,
     };
     const { dataValues } = await user.create(
       newData,
@@ -40,6 +46,9 @@ export default class UserService {
           'address',
           'role',
           'isVerified',
+          'emailNotification',
+          'inAppNotification',
+          'lineManager',
         ],
       },
     );
@@ -70,10 +79,8 @@ export default class UserService {
     if (!currUser) {
       currUser = await user.findOne({ where: { email: value } });
     }
-   
     return currUser;
-       }
-  ;
+  };
 
   /**
    * function findOne() returns all users in db
@@ -84,8 +91,8 @@ export default class UserService {
     const currUser = await user.findOne({
       where: {
         email: sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), 'LIKE', `%${email}%`)
-    }
-  });
+      }
+    });
     return currUser;
   };
 
@@ -106,11 +113,24 @@ export default class UserService {
     return updatedUser;
   }
 
-  static updateIsVerified = async (email) => {
-    const update = await user.update(
-      { isVerified: true },
-      { where: { email } }
-    );
+  /**
+   * @param {string} value
+   * @param {boolean} status
+   * @returns {object} returns an updated user
+   */
+  static updateIsVerifiedOrDisableNotification = async (value, status) => {
+    let update;
+    if (isNaN(value) && value.includes('@')) {
+      update = await user.update(
+        { isVerified: true },
+        { where: { email: value } }
+      );
+    } else {
+      update = await user.update(
+        { emailNotification: !status },
+        { where: { id: value } }
+      );
+    }
     return update;
   }
 
@@ -118,5 +138,10 @@ export default class UserService {
    * @param {Number} userId a user id to look for in database
    * @returns {object} returns a user account information
    */
-  static getUserById = (userId) => user.findOne({ where: { id: userId } });
+  static getUserById = async (userId) => user.findOne({ where: { id: userId } });
+
+  static getManagerByLineManager = async (manager) => {
+    const result = await user.findAll({ attributes: ['id'], where: { lineManager: manager } });
+    return result;
+  };
 }

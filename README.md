@@ -114,4 +114,7 @@ Refer to the [sequelize](https://sequelize.org/v5/) and [sequelize-cli](https://
 | /api/profile | PATCH | 200 OK | Makes a PATCH request when a user wants to update his profile |
 | /api/profile/password | PATCH | 200 OK | Makes a PATCH request to help password changes, whenever a user needs to change his/her password directly from his/her profile|
 | /api/auth/verify?token=eyWWWSDHFGC | GET | 200 OK | Makes a GET request when a user clicks on the link that is sent to him/her via Email to verify his/her email |
+| /api/trips/inapp/notification | POST | 200 OK | It shows the inApp notifications to manager and requester |
+| api/auth/disable?mode=inapp | POST | 200 OK | It enables/disables inApp notifications |
+| api/auth/disable?mode=email | POST | 200 OK | It enables/disables email notifications |
 | ||More Details about all of the above endpoints, their responses form, and when there is an error how they respond, please click here for further documentation [Documentation](https://stackup2-barefoot-backend-stag.herokuapp.com/public/api-docs/#/) ||

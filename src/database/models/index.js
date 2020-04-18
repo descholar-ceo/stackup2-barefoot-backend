@@ -25,7 +25,7 @@ readdirSync(__dirname)
 
 
 Object.keys(db).forEach((modelName) => {
-  db[modelName].associate(db);
+  db[modelName].associate(db); 
 });
 
 db.sequelize = sequelize;

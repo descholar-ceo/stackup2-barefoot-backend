@@ -1,8 +1,18 @@
+/* eslint-disable require-jsdoc */
 import dotenv from 'dotenv';
 import roles from '../../src/utils/userRoles.utils';
 
+
 dotenv.config();
 
+const date = new Date();
+const date2 = new Date();
+const date3 = new Date();
+const newDate = new Date(); 
+date.setDate(date.getDate() + 1);
+date2.setDate(date.getDate() + 4);
+date3.setDate(date.getDate() + 14);
+newDate.setDate(date.getDate() + 3);
 export default {
   signupData: {
     firstName: 'John',
@@ -12,6 +22,17 @@ export default {
     address: 'Kigali',
     password: 'Helloworld3@',
     gender: 'Male',
+  },
+  dummyManager: {
+    firstName: 'Louise',
+    lastName: 'Patrick',
+    username: 'patrick',
+    role: 'manager',
+    email: 'louise@patrick.com',
+    address: 'Goma',
+    password: 'Helloworld3@',
+    gender: 'Male',
+    isVerified: true,
   },
   invalidFirstname: {
     firstName: 'Jo 3hn',
@@ -79,6 +100,10 @@ export default {
   realLoginDataFromTheDb: {
     email: 'john@doe.com',
     password: 'Helloworld3@'
+  },
+  loginManager: {
+    email: 'patrick@gmail.com',
+    password: 'Descholar2@'
   },
   realLoginDataFromTheDb1: {
     username: 'Jdoe',
@@ -151,6 +176,17 @@ export default {
     address: 'Kigali',
     password: 'Onewaytripreq123@',
     gender: 'Male',
+    lineManager: 12,
+  },
+  commentsUser: {
+    firstName: 'user',
+    lastName: 'commenter',
+    username: 'userCommenter',
+    email: 'user01@example.com',
+    address: 'Kigali',
+    password: 'Onewaytripreq123@',
+    gender: 'Male',
+    lineManager: 3,
   },
   tripRequesterNoCommentYet: {
     firstName: 'John',
@@ -160,6 +196,7 @@ export default {
     address: 'Kigali',
     password: 'Onewaytripreq123@',
     gender: 'Male',
+    lineManager: 3,
   },
   tripRequesterManagerNoRquestYet: {
     firstName: 'John',
@@ -169,6 +206,7 @@ export default {
     address: 'Kigali',
     password: 'Onewaytripreq123@',
     gender: 'Male',
+    lineManager: 0,
   },
   managerLoginValidData: {
     email: 'tripRequesterManagerNoRquestYet@example.com',
@@ -181,6 +219,22 @@ export default {
     travelReason: 'business meeting',
     travelType: 'One-way',
     accommodation: true,
+  },
+  oneWayTripRequest2: {
+    travelFrom: 'Nyanza',
+    travelTo: 'Kigali',
+    travelDate: new Date(Date.now() + 3932000000),
+    travelReason: 'Business meeting',
+    travelType: 'one-way',
+    accommodation: true
+  },
+  oneWayTripRequest3: {
+    travelFrom: 'Nyanza',
+    travelTo: 'Kigali',
+    travelDate: new Date(Date.now() + 3932000000),
+    travelReason: 'Business meeting',
+    travelType: 'one-way',
+    accommodation: true
   },
   realLoginDataFromDbVerifiedUser: {
     email: 'john@doe.com',
@@ -281,13 +335,13 @@ export default {
     gender: 'Female',
   },
   returnTripRequest: {
-    travelFrom: 'kigali',
-    travelTo: 'Butare',
-    travelDate: '2020-08-05',
-    returnDate: '2021-09-14T15:12:59.360Z',
-    travelReason: 'business meeting',
+    travelFrom: 'Gisenyi',
+    travelTo: 'Musanze',
+    travelDate: new Date(Date.now() + 432000000),
+    returnDate: new Date(Date.now() + 518400000),
+    travelReason: 'vacation',
     travelType: 'return-trip',
-    accommodation: true,
+    accommodation: true
   },
   returnTripInvalidType: {
     travelFrom: 'kigali',
@@ -438,6 +492,7 @@ export default {
     address: 'Kigali',
     password: 'Onewaytripreq123@',
     gender: 'Male',
+    lineManager: 12,
   },
   manager2Account: {
     firstName: 'Oprah',
@@ -484,6 +539,7 @@ export default {
     address: 'Kigali',
     password: 'Onewaytripreq123@',
     gender: 'Female',
+    lineManager: 12
   },
   unexistantLineManager: 1000,
 };

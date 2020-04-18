@@ -5,10 +5,13 @@ import server from '../../src/index';
 import customMessages from '../../src/utils/customMessages';
 import statusCodes from '../../src/utils/statusCodes';
 import mockData from '../data/mockData';
+import insertManager from '../data/insertManager';
+import userService from '../../src/services/authentication.service';
 import loginToken from '../controllers/authentication.test';
 import { INSERT_SAMPLE_REQUEST, UPDATE_USER_8_TO_MANAGER, INSERT_REQUEST, INSERT_USER, SELECT_REQUEST } from '../data/insert-sample-data-in_db';
 
 const { sequelize } = models;
+const { updateIsVerifiedOrDisableNotification, findUserByEmail } = userService;
 const {
   oneWayTripRequest,
   oneWayTripRequester,
@@ -18,6 +21,8 @@ const {
   invalidReturnDate,
   tripRequesterManagerNoRquestYet,
   managerLoginValidData,
+  oneWayTripRequest2,
+  oneWayTripRequest3,
   searchTripRequests,
   tripsStatsValidTimeframe,
   tripsStatsInvalidTimeframe,
@@ -28,6 +33,7 @@ const {
   updator,
   loginSuperUser, 
   bookAccommodation,
+  commentsUser,
 } = mockData;
 const {
   invalidTravelType,
@@ -40,10 +46,14 @@ const {
   duplicateTripRequest,
   noPlacesRetrieved,
   placesRetrieved,
+  tripFound,
+  invalidMode,
   commentAdded,
   requestIdMustBeANumber,
   commentUpdatedSuccess,
+  allPendingTrip,
   isNotMyComment,
+  lineManagerIsNotAManager,
   commentNoFound,
   commentOnOthersReqNotAdmin,
   requestNotExists,
@@ -61,7 +71,9 @@ const {
   emptySearchResult,
   invalidTripsStatsEndDate,
   viewStatsUnauthorized,
+  managerDoesntExist,
   requesterNotRegistered,
+  emptyInAppNotification,
   requestUpdated,
   notOpenRequest,
   emptyUpdate,
@@ -72,11 +84,16 @@ const {
   tripRequestNotExist,
   bookedAccommodation,
   duplicateAccommodationBookings,
+  notificationsDisabled,
+  invalidStatus,
+  invlidTypeId,
+  NotificationDisabled,
 } = customMessages;
 const {
   created,
   badRequest,
   unAuthorized,
+  forbidden,
   ok, notFound
 } = statusCodes;
 const { wrongToken } = testingTokens;
@@ -84,6 +101,9 @@ chai.use(chaiHttp);
 chai.should();
 
 let authToken = '';
+let managerToken;
+let commentToken;
+let tripId;
 let authTokenNoCommentYet = '';
 let authTokenManagerToVerify = '';
 let authTokenManager = '';
@@ -187,6 +207,40 @@ describe('One way trip request', () => {
         done();
       });
   });
+  
+
+  it('should not create a one way trip request for invalid lineManagers', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authTokenManagerToVerify)
+      .send(oneWayTripRequest2)
+      .end((err, res) => {
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(managerDoesntExist);
+        done();
+      });
+  });
+
+
+  it('should not create a one way trip request for invalid lineManagers', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authTokenManagerToVerify)
+      .send(oneWayTripRequest2)
+      .end((err, res) => {
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(managerDoesntExist);
+        done();
+      });
+  });
 
   it('Login as a manager', (done) => {
     chai
@@ -204,38 +258,38 @@ describe('One way trip request', () => {
         done();
       });
   });
-  
-    it('should not create a one way trip request for unverified users', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send(oneWayTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { error } = res.body;
-          expect(res.status).to.equal(unAuthorized);
-          expect(error);
-          expect(error).to.be.a('string');
-          expect(error).to.equal(accountNotVerified);
-          done();
-        });
-    });
 
-    it('Should verify requester account', (done) => {
-      chai.request(server)
-        .get(`/api/auth/verify?token=${authToken.split(' ').pop()}`)
-        .end((err, res) => {
-          if (err) done(err);
-          const { message } = res.body;
-          expect(res.status).to.equal(ok);
-          expect(message).to.be.a('string');
-          expect(message).to.equal(verifyMessage);
-          done();
-        });
-    });
+  it('should not create a one way trip request for unverified users', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(unAuthorized);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(accountNotVerified);
+        done();
+      });
+  });
 
-    it(`Requesting the most traveled destinations while there is no any yet, should return an object with 404
+  it('Should verify requester account', (done) => {
+    chai.request(server)
+      .get(`/api/auth/verify?token=${authToken.split(' ').pop()}`)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(verifyMessage);
+        done();
+      });
+  });
+
+  it(`Requesting the most traveled destinations while there is no any yet, should return an object with 404
   error code, and error message`, (done) => {
       chai
         .request(server)
@@ -249,77 +303,7 @@ describe('One way trip request', () => {
           done();
         });
     });
-    it('should create a one way trip request for verified users', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send(oneWayTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { message, data } = res.body;
-          requestId2 = data.id;
-          expect(res.status).to.equal(created);
-          expect(message);
-          expect(data);
-          expect(data).to.be.an('object');
-          expect(message).to.be.a('string');
-          expect(message).to.equal(oneWayTripRequestCreated);
-          requesterTripRequests.push(data);
-          done();
-        });
-    });
-    it('should create a return trip request for verified users', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send(returnTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { message, data } = res.body;
-          requestId = data.id;
-          expect(res.status).to.equal(created);
-          expect(message);
-          expect(data);
-          expect(data).to.be.an('object');
-          expect(message).to.be.a('string');
-          expect(message).to.equal(oneWayTripRequestCreated);
-          done();
-        });
-    });
-    it('should not create a duplicate one way trip request', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send(oneWayTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { error } = res.body;
-          expect(res.status).to.equal(badRequest);
-          expect(error);
-          expect(error).to.be.a('string');
-          expect(error).to.equal(duplicateTripRequest);
-          done();
-        });
-    });
-    it('should not create a duplicate return trip request', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send(returnTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { error } = res.body;
-          expect(res.status).to.equal(badRequest);
-          expect(error);
-          expect(error).to.be.a('string');
-          expect(error).to.equal(duplicateTripRequest);
-          done();
-        });
-    });
+   
     it('should not create a one way trip request with invalid travel type', (done) => {
       chai
         .request(server)
@@ -337,68 +321,85 @@ describe('One way trip request', () => {
         });
     });
 
-    it('should not create a one way trip request without travel type', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send({ ...oneWayTripRequest, travelType: undefined })
-        .end((err, res) => {
-          if (err) done(err);
-          const { error } = res.body;
-          expect(res.status).to.equal(badRequest);
-          expect(error);
-          expect(error).to.be.a('string');
-          expect(error).to.equal(invalidTravelType);
-          done();
-        });
-    });
-
-    it('should not create a one way trip request with invalid trip info', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', authToken)
-        .send({ ...oneWayTripRequest, travelDate: 'invalid-travel-date' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res.status).to.equal(badRequest);
-          done();
-        });
-    });
-
-    it('should not create a one way trip request without an authorization token', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .send(oneWayTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { error } = res.body;
-          expect(res.status).to.equal(badRequest);
-          expect(error);
-          expect(error).to.be.a('string');
-          expect(error).to.equal(tokenMissing);
-          done();
-        });
-    });
-    it('should not create a one way trip request with invalid/expired token', (done) => {
-      chai
-        .request(server)
-        .post('/api/trips')
-        .set('Authorization', 'Bearer invalid_expired_token')
-        .send(oneWayTripRequest)
-        .end((err, res) => {
-          if (err) done(err);
-          const { error } = res.body;
-          expect(res.status).to.equal(badRequest);
-          expect(error);
-          expect(error).to.be.a('string');
-          expect(error).to.equal(tokenInvalid);
-          done();
-        });
-    });
+  it('should not create a one way trip request with invalid travel type', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send({ ...oneWayTripRequest, travelType: 'invalid-travel-type' })
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invalidTravelType);
+        done();
+      });
   });
+
+  it('should not create a one way trip request without travel type', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send({ ...oneWayTripRequest, travelType: undefined })
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invalidTravelType);
+        done();
+      });
+  });
+
+  it('should not create a one way trip request with invalid trip info', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send({ ...oneWayTripRequest, travelDate: 'invalid-travel-date' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res.status).to.equal(badRequest);
+        done();
+      });
+  });
+
+  it('should not create a one way trip request without an authorization token', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(tokenMissing);
+        done();
+      });
+  });
+  it('should not create a one way trip request with invalid/expired token', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', 'Bearer invalid_expired_token')
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(tokenInvalid);
+        done();
+      });
+  });
+});
 describe('Return trip request', () => {
   it('should not create a return trip request for unverified users', (done) => {
     chai
@@ -540,434 +541,1017 @@ describe('Return trip request', () => {
   });
 });
 
-  describe('Testing most traveled destinations', () => {
-    before('Insert sample request in db', () => {
-      sequelize.query(INSERT_SAMPLE_REQUEST);
-    });
-    it(`Requesting the most traveled destinations, should return an object with 200 
+describe('Manager can view all pending trip requests', () => {
+  before('Generate dummy manager token', async () => {
+    await insertManager();
+  });
+
+  it('should login a manager', (done) => {
+    chai
+      .request(server)
+      .post('/api/auth/login')
+      .set('Accept', 'Application/json')
+      .send(mockData.loginManager)
+      .end((err, res) => {
+        if (err) done(err);
+        managerToken = res.body.token;
+        expect(res).to.have.status(200);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal('Successfully logged in');
+        expect(res.body).to.have.property('token');
+        done();
+      });
+  });
+  it('Should verify manager account', (done) => {
+    chai.request(server)
+      .get(`/api/auth/verify?token=${managerToken.split(' ').pop()}`)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(verifyMessage);
+        done();
+      });
+  });
+  it('should create a one way trip request for verified users', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        requestId2 = data.id;
+        expect(res.status).to.equal(created);
+        expect(message);
+        expect(data);
+        expect(data).to.be.an('object');
+        expect(message).to.be.a('string');
+        expect(message).to.equal(oneWayTripRequestCreated);
+        done();
+      });
+  });
+  it('should create a return trip request for verified users', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(returnTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        requestId = data.id;
+        expect(res.status).to.equal(created);
+        expect(message);
+        expect(data);
+        expect(data).to.be.an('object');
+        expect(message).to.be.a('string');
+        expect(message).to.equal(oneWayTripRequestCreated);
+        done();
+      });
+  });
+  it('should not create a duplicate one way trip request', (done) => {
+    chai
+    .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(duplicateTripRequest);
+        done();
+      });
+  });
+  it('should not create a duplicate return trip request', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(returnTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(duplicateTripRequest);
+        done();
+      });
+  });
+  it('should return inApp notification to none managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+
+  it('should return all inApp notification to none managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+
+  it('should return inApp notification to managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+  it('should return inApp notification to managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread&typeId=1')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+  it('should return inApp notification to managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+  it('should return trip created inApp notification to none managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread&typeId=1')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+  it('should create a one way trip request', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(oneWayTripRequest2)
+      .end((err, res) => {
+        const { message, data } = res.body;
+        tripId = data.id;
+        expect(res.status).to.equal(created);
+        expect(message);
+        expect(data);
+        expect(data).to.be.an('object');
+        expect(message).to.be.a('string');
+        expect(message).to.equal(oneWayTripRequestCreated);
+        done();
+      });
+  });
+  it('should not create a one way trip request for invalid lineManager', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authTokenNoCommentYet)
+      .send(oneWayTripRequest2)
+      .end((err, res) => {
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(lineManagerIsNotAManager);
+        done();
+      });
+  });
+
+  it('should disable email notifications', (done) => {
+    chai
+      .request(server)
+      .get('/api/auth/disable?mode=email')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(NotificationDisabled);
+        done();
+      });
+  });
+
+  it('should disable email notifications for the LineManager', (done) => {
+    chai
+      .request(server)
+      .get('/api/auth/disable?mode=email')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(NotificationDisabled);
+        done();
+      });
+  });
+
+  it('should return a one way trip request', (done) => {
+    chai
+      .request(server)
+      .get(`/api/trips/${tripId}`)
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message);
+        expect(data);
+        expect(data).to.be.an('object');
+        expect(message).to.be.a('string');
+        expect(message).to.equal(tripFound);
+        done();
+      });
+  });
+  it('should not create a duplicate one way trip request', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(oneWayTripRequest2)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(duplicateTripRequest);
+        done();
+      });
+  });
+  it('should not create a duplicate return trip request', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send(returnTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(duplicateTripRequest);
+        done();
+      });
+  });
+  it('should not create a one way trip request with invalid travel type', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send({ ...oneWayTripRequest, travelType: 'invalid-travel-type' })
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invalidTravelType);
+        done();
+      });
+  });
+
+  it('should not create a one way trip request without travel type', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send({ ...oneWayTripRequest, travelType: undefined })
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invalidTravelType);
+        done();
+      });
+  });
+
+  it('should not create a one way trip request with invalid trip info', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', authToken)
+      .send({ ...oneWayTripRequest, travelDate: 'invalid-travel-date' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res.status).to.equal(badRequest);
+        done();
+      });
+  });
+
+  it('should not create a one way trip request without an authorization token', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(tokenMissing);
+        done();
+      });
+  });
+  it('should not create a one way trip request with invalid/expired token', (done) => {
+    chai
+      .request(server)
+      .post('/api/trips')
+      .set('Authorization', 'Bearer invalid_expired_token')
+      .send(oneWayTripRequest)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(tokenInvalid);
+        done();
+      });
+  });
+
+  it('should not disable notifications using invalid mode', (done) => {
+    chai
+      .request(server)
+      .get('/api/auth/disable?mode=invalidMode')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(forbidden);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invalidMode);
+        done();
+      });
+  });
+
+  it('should return inApp read notification to none-managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread&typeId=0')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(emptyInAppNotification);
+        done();
+      });
+  });
+
+  it('should disable in-app notifications', (done) => {
+    chai
+      .request(server)
+      .get('/api/auth/disable?mode=inapp')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(NotificationDisabled);
+        done();
+      });
+  });
+
+
+  it('should return inApp read notification to managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=read')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(emptyInAppNotification);
+        done();
+      });
+  });
+
+  it('should return inApp notification to managers', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread&typeId=1')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(data);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(data).to.be.an('array');
+        expect(message).to.equal(allPendingTrip);
+        done();
+      });
+  });
+
+  it('should not return inApp notification to managers with invalid status', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=invalid&typeId=1')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invalidStatus);
+        done();
+      });
+  });
+
+  it('should not return inApp notification to managers with invalid typeId', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread&typeId=invalid')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(badRequest);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(invlidTypeId);
+        done();
+      });
+  });
+
+  it('should disable in-app notifications for manager', (done) => {
+    chai
+      .request(server)
+      .get('/api/auth/disable?mode=inapp')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(NotificationDisabled);
+        done();
+      });
+  });
+
+  it('should not return inApp notifications trip request to managers how disabled notifications', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips/inapp/notification?status=unread')
+      .set('Authorization', managerToken)
+      .end((err, res) => {
+        if (err) done(err);
+        const { error } = res.body;
+        expect(res.status).to.equal(unAuthorized);
+        expect(error);
+        expect(error).to.be.a('string');
+        expect(error).to.equal(notificationsDisabled);
+        done();
+      });
+  });
+});
+
+
+describe('Testing most traveled destinations', () => {
+  before('Insert sample request in db', () => {
+    sequelize.query(INSERT_SAMPLE_REQUEST);
+  });
+  it(`Requesting the most traveled destinations, should return an object with 200 
   status code, and array containing data`, (done) => {
-      chai
-        .request(server)
-        .get('/api/trips/most-traveled-destinations')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('message').to.equal(placesRetrieved);
-          expect(res.body).to.have.property('data').to.be.an('array');
-          done();
-        });
-    });
+    chai
+      .request(server)
+      .get('/api/trips/most-traveled-destinations')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal(placesRetrieved);
+        expect(res.body).to.have.property('data').to.be.an('array');
+        done();
+      });
   });
+});
 
-  describe('Testing other cases on comments', () => {
-    it(`Posting comment with valid data, expect to return an object with 201 status 
+describe('Testing other cases on comments', () => {
+  it('should create a user to use in comments', (done) => {
+    chai
+      .request(server)
+      .post('/api/auth/signup')
+      .send(commentsUser)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, token } = res.body;
+        expect(res.status).to.equal(statusCodes.created);
+        expect(message);
+        expect(message).to.equal(userSignupSuccess);
+        expect(token);
+        commentToken = `Bearer ${token}`;
+        done();
+      });
+  });
+  it('Will verify a requester with no commented requests', (done) => {
+    chai.request(server)
+      .get(`/api/auth/verify?token=${commentToken.split(' ').pop()}`)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message).to.be.a('string');
+        expect(message).to.equal(verifyMessage);
+        done();
+      });
+  });
+  it(`Posting comment with valid data, expect to return an object with 201 status 
   code and message and data as properties`, (done) => {
-      chai
-        .request(server)
-        .post('/api/trips/1/comment')
-        .set('Authorization', authToken)
-        .send({ requestId: 1, comment: 'Comment with valid data on my request which is supposed to be inserted' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(created);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('message').to.equal(commentAdded);
-          expect(res.body).to.have.property('data').to.be.an('object');
-          done();
-        });
-    });
-    it(`Posting comment on notFoundRequest, expect to return an object with 404 status 
+    chai
+      .request(server)
+      .post('/api/trips/1/comment')
+      .set('Authorization', authToken)
+      .send({ requestId: 1, comment: 'Comment with valid data on my request which is supposed to be inserted' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(created);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal(commentAdded);
+        expect(res.body).to.have.property('data').to.be.an('object');
+        done();
+      });
+  });
+  it(`Posting comment on notFoundRequest, expect to return an object with 404 status 
   code and message and data as properties`, (done) => {
-      chai
-        .request(server)
-        .post('/api/trips/0/comment')
-        .set('Authorization', authToken)
-        .send({ comment: 'Comment on request which doesn\'t exist' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(requestNotExists);
-          done();
-        });
-    });
-    it(`Reading comment on my request from not exists page, expect it to return an object with error
+    chai
+      .request(server)
+      .post('/api/trips/0/comment')
+      .set('Authorization', authToken)
+      .send({ comment: 'Comment on request which doesn\'t exist' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(requestNotExists);
+        done();
+      });
+  });
+  it(`Reading comment on my request from not exists page, expect it to return an object with error
     with 404 status code`, (done) => {
-      chai
-        .request(server)
-        .get('/api/trips/comment?requestId=1&page=10000')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(noCommentOnThisPage);
-          done();
-        });
-    });
-    it(`Reading comment on my request with requester token with no comment yet, expect it to 
-  return an object with message and data properties with 200 status code`, (done) => {
-      chai
-        .request(server)
-        .get('/api/trips/comment?requestId=5&page=1')
-        .set('Authorization', authTokenNoCommentYet)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(noCommentYet);
-          done();
-        });
-    });
-    it(`Updating comment which is not mine, expect it to return a response of 401 
-  status code and an object containing error message`, (done) => {
-      chai
-        .request(server)
-        .patch('/api/trips/comment/1')
-        .set('Authorization', authTokenManager)
-        .send({ comment: 'Welcome back to the new world' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(unAuthorized);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(isNotMyComment);
-          done();
-        });
-    });
-    it(`Updating comment which is mine, expect it to return a response of 200 status code and an object containing
-  message and data as properties`, (done) => {
-      chai
-        .request(server)
-        .patch('/api/trips/comment/1')
-        .set('Authorization', authToken)
-        .send({ comment: 'Welcome back to the new world' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('message').to.equal(commentUpdatedSuccess);
-          expect(res.body).to.have.property('data').to.be.an('array');
-          done();
-        });
-    });
-    it(`Updating comment which doesn\'t exist, expect it to return a response of 404 status code and 
-  an object containing error message`, (done) => {
-      chai
-        .request(server)
-        .patch('/api/trips/comment/0')
-        .set('Authorization', authToken)
-        .send({ comment: 'Welcome back to the new world' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(commentNoFound);
-          done();
-        });
-    });
-
-    it(`Updating comment which doesn\'t exist, expect it to return a response of 404 status code and 
-  an object containing error message`, (done) => {
-      chai
-        .request(server)
-        .patch('/api/trips/comment/seoul')
-        .set('Authorization', authToken)
-        .send({ comment: 'Welcome back to the new world' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(commentNoFound);
-          done();
-        });
-    });
-
-    it(`Posting comment on other user's request while I am not a manager, expect it to return a response of 
-  401 status code and an object containing error message`, (done) => {
-      chai
-        .request(server)
-        .post('/api/trips/5/comment')
-        .set('Authorization', authToken)
-        .send({ comment: 'Comment on other users while I am bot a manager' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(unAuthorized);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(commentOnOthersReqNotAdmin);
-          done();
-        });
-    });
-
-    it(`Posting comment with weird data, expect it to return a response of 
-  401 status code and an object containing error message`, (done) => {
-      chai
-        .request(server)
-        .post('/api/trips/cool/comment')
-        .set('Authorization', authToken)
-        .send({ comment: 'Comment with weird data' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(badRequest);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('error').to.equal(requestIdMustBeANumber);
-          done();
-        });
-    });
-
-    it(`Posting comment as a manager on any request, expect it to return response with 201 status code
-  and an object with message and data properties`, (done) => {
-      chai
-        .request(server)
-        .post('/api/trips/1/comment')
-        .set('Authorization', authTokenManager)
-        .send({ comment: 'Comment with valid data as a manager which is supposed to be inserted' })
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(created);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('message').to.equal(commentAdded);
-          expect(res.body).to.have.property('data').to.be.an('object');
-          done();
-        });
-    });
-
-    it('Will read all comments any comment as a manager', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=1&page=1')
-        .set('Authorization', authTokenManager)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object').to.have.property('message').to.equal(commentsRetrieved);
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('commentNumber');
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundComments');
-          done();
-        });
-    });
-
-    it('Will read any comment as a manager', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=1&page=1')
-        .set('Authorization', authTokenNoCommentYet)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(unAuthorized);
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(viewCmtNotMineReq);
-          done();
-        });
-    });
-    it('Will read all comments on a single request', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=1&page=1')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object').to.have.property('message').to.equal(commentsRetrieved);
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('commentNumber');
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundComments');
-          done();
-        });
-    });
-    it('Will read all comments on a single request without sending page number', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=1')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object').to.have.property('message').to.equal(commentsRetrieved);
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('commentNumber');
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundComments');
-          done();
-        });
-    });
-   
-    it('Will try to read comments on a single request where request param is a string', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=seoul&page=1')
-        .set('Authorization', authTokenManager)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(badRequest);
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(requestIdMustBeANumber);
-          done();
-        });
-    });
-    it('Will try to read comments on not found request', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=0&page=1')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(requestNotExists);
-          done();
-        });
-    });
-    it('Will try to read comment on a request which doesn\'t have any comment yet', (done) => {
-      chai.request(server)
-        .get('/api/trips/comment?requestId=2&page=1')
-        .set('Authorization', authTokenManager)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(noCommentYet);
-          done();
-        });
-    });
-
-    it('Will retrieve all requests of logged-in user', (done) => {
-      chai
-        .request(server)
-        .get('/api/trips')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.be.an('object').to.have.property('message').to.equal(requestsRetrieved);
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('totalRequests').to.be.an('number');
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundRequests').to.be.an('array');
-          done();
-        });
-    });
-    it('Will retrieve all requests of logged-in user with sending the page', (done) => {
-      chai
-        .request(server)
-        .get('/api/trips?page=1')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.be.an('object').to.have.property('message').to.equal(requestsRetrieved);
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('totalRequests').to.be.an('number');
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundRequests').to.be.an('array');
-          done();
-        });
-    });
-    it('Will retrieve all requests of logged-in user with sending the page', (done) => {
-      chai
-        .request(server)
-        .get('/api/trips?page=0')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(ok);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.be.an('object').to.have.property('message').to.equal(requestsRetrieved);
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('totalRequests').to.be.an('number');
-          expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundRequests').to.be.an('array');
-          done();
-        });
-    });
-    it(`Login with real data especially email which are in the db, should return an
-   object with a property of message and token`, (done) => {
-      chai
-        .request(server)
-        .post('/api/auth/login')
-        .set('Accept', 'Application/json')
-        .send({ email: 'john@doe.com', password: 'Markjoe45@' })
-        .end((err, res) => {
-          if (err) done(err);
-          authTokenRequesterNoReqYet = `Bearer ${res.body.token}`;
-          expect(res).to.have.status(200);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.have.property('message').to.equal('Successfully logged in');
-          expect(res.body).to.have.property('token');
-          done();
-        });
-    });
-    it('Will not retrieve any request since this user doesn\'t have any request yet', (done) => {
-      chai
-        .request(server)
-        .get('/api/trips')
-        .set('Authorization', authTokenRequesterNoReqYet)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(noRequestsYet);
-          done();
-        });
-    });
-    it('Will not retrieve any request on a particular page because there is not there any request yet', (done) => {
-      chai
-        .request(server)
-        .get('/api/trips?page=10000000')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(notFound);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(noRequestsFoundOnThisPage);
-          done();
-        });
-    });
-    it('Will not retrieve any request on a particular page because there is not there any request yet', (done) => {
-      chai
-        .request(server)
-        .get('/api/trips?page=cool')
-        .set('Authorization', authToken)
-        .end((err, res) => {
-          if (err) done(err);
-          expect(res).to.have.status(badRequest);
-          expect(res.body).to.be.an('object');
-          expect(res.body).to.be.an('object').to.have.property('error').to.equal(pageMustBeANumber);
-          done();
-        });
-    });
+    chai
+      .request(server)
+      .get('/api/trips/comment?requestId=1&page=10000')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(noCommentOnThisPage);
+        done();
+      });
+  });
+  it(`Reading comment on my request with requester token with no comment yet, expect it to 
+  return an object with message and data properties with 404 status code`, (done) => {
+    chai
+      .request(server)
+      .get(`/api/trips/comment?requestId=${tripId}&page=1`)
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(noCommentYet);
+        done();
+      });
   });
 
-    describe('Testing deleting comments', () => {
-      it('Will not be able to delete an not exists comment, expect it to return a response with 200 status code and an object with message', (done) => {
-        chai
-          .request(server)
-          .delete('/api/trips/comment/0')
-          .set('Authorization', authToken)
-          .end((err, res) => {
-            if (err) done(err);
-            expect(res).to.have.status(notFound);
-            expect(res.body).to.be.an('object');
-            expect(res.body).to.have.property('error').to.equal(commentNoFound);
-            done();
-          });
+  it(`Updating comment which is not mine, expect it to return a response of 401 
+  status code and an object containing error message`, (done) => {
+    chai
+      .request(server)
+      .patch('/api/trips/comment/1')
+      .set('Authorization', authTokenManager)
+      .send({ comment: 'Welcome back to the new world' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(unAuthorized);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(isNotMyComment);
+        done();
       });
+  });
+
+  it(`Posting comment on other user's request while I am not a manager, expect it to return a response of 
+  401 status code and an object containing error message`, (done) => {
+    chai
+      .request(server)
+      .post(`/api/trips/${tripId}/comment`)
+      .set('Authorization', commentToken)
+      .send({ comment: 'Comment on other users while I am bot a manager' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(unAuthorized);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(commentOnOthersReqNotAdmin);
+        done();
+      });
+  });
+  it(`Updating comment which is mine, expect it to return a response of 200 status code and an object containing
+  message and data as properties`, (done) => {
+    chai
+      .request(server)
+      .patch('/api/trips/comment/1')
+      .set('Authorization', authToken)
+      .send({ comment: 'Welcome back to the new world' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal(commentUpdatedSuccess);
+        expect(res.body).to.have.property('data').to.be.an('array');
+        done();
+      });
+  });
+  it(`Updating comment which doesn\'t exist, expect it to return a response of 404 status code and 
+  an object containing error message`, (done) => {
+    chai
+      .request(server)
+      .patch('/api/trips/comment/0')
+      .set('Authorization', authToken)
+      .send({ comment: 'Welcome back to the new world' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(commentNoFound);
+        done();
+      });
+  });
+
+  it(`Updating comment which doesn\'t exist, expect it to return a response of 404 status code and 
+  an object containing error message`, (done) => {
+    chai
+      .request(server)
+      .patch('/api/trips/comment/seoul')
+      .set('Authorization', authToken)
+      .send({ comment: 'Welcome back to the new world' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(commentNoFound);
+        done();
+      });
+  });
 
 
-      it(`Will try to delete comment which is not mine, 
+  it(`Posting comment with weird data, expect it to return a response of 
+  401 status code and an object containing error message`, (done) => {
+    chai
+      .request(server)
+      .post('/api/trips/cool/comment')
+      .set('Authorization', authToken)
+      .send({ comment: 'Comment with weird data' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(badRequest);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(requestIdMustBeANumber);
+        done();
+      });
+  });
+
+  it(`Posting comment as a manager on any request, expect it to return response with 201 status code
+  and an object with message and data properties`, (done) => {
+    chai
+      .request(server)
+      .post('/api/trips/1/comment')
+      .set('Authorization', authTokenManager)
+      .send({ comment: 'Comment with valid data as a manager which is supposed to be inserted' })
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(created);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal(commentAdded);
+        expect(res.body).to.have.property('data').to.be.an('object');
+        done();
+      });
+  });
+
+  it('Will read all comments any comment as a manager', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=1&page=1')
+      .set('Authorization', authTokenManager)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object').to.have.property('message').to.equal(commentsRetrieved);
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('commentNumber');
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundComments');
+        done();
+      });
+  });
+
+  it('Will read any comment as a manager', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=1&page=1')
+      .set('Authorization', authTokenNoCommentYet)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(unAuthorized);
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(viewCmtNotMineReq);
+        done();
+      });
+  });
+  it('Will read all comments on a single request', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=1&page=1')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object').to.have.property('message').to.equal(commentsRetrieved);
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('commentNumber');
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundComments');
+        done();
+      });
+  });
+  it('Will read all comments on a single request without sending page number', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=1')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object').to.have.property('message').to.equal(commentsRetrieved);
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('commentNumber');
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundComments');
+        done();
+      });
+  });
+
+  it('Will try to read comments on a single request where request param is a string', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=seoul&page=1')
+      .set('Authorization', authTokenManager)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(badRequest);
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(requestIdMustBeANumber);
+        done();
+      });
+  });
+  it('Will try to read comments on not found request', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=0&page=1')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(requestNotExists);
+        done();
+      });
+  });
+  it('Will try to read comment on a request which doesn\'t have any comment yet', (done) => {
+    chai.request(server)
+      .get('/api/trips/comment?requestId=2&page=1')
+      .set('Authorization', authTokenManager)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(noCommentYet);
+        done();
+      });
+  });
+
+  it('Will retrieve all requests of logged-in user', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object').to.have.property('message').to.equal(requestsRetrieved);
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('totalRequests').to.be.an('number');
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundRequests').to.be.an('array');
+        done();
+      });
+  });
+  it('Will retrieve all requests of logged-in user with sending the page', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips?page=1')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object').to.have.property('message').to.equal(requestsRetrieved);
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('totalRequests').to.be.an('number');
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundRequests').to.be.an('array');
+        done();
+      });
+  });
+  it('Will retrieve all requests of logged-in user with sending the page', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips?page=0')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object').to.have.property('message').to.equal(requestsRetrieved);
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('totalRequests').to.be.an('number');
+        expect(res.body).to.be.an('object').to.have.property('data').to.be.an('object').to.have.property('foundRequests').to.be.an('array');
+        done();
+      });
+  });
+  it(`Login with real data especially email which are in the db, should return an
+   object with a property of message and token`, (done) => {
+    chai
+      .request(server)
+      .post('/api/auth/login')
+      .set('Accept', 'Application/json')
+      .send({ email: 'john@doe.com', password: 'Markjoe45@' })
+      .end((err, res) => {
+        if (err) done(err);
+        authTokenRequesterNoReqYet = `Bearer ${res.body.token}`;
+        expect(res).to.have.status(200);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal('Successfully logged in');
+        expect(res.body).to.have.property('token');
+        done();
+      });
+  });
+  it('Will not retrieve any request since this user doesn\'t have any request yet', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips')
+      .set('Authorization', authTokenRequesterNoReqYet)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(noRequestsYet);
+        done();
+      });
+  });
+  it('Will not retrieve any request on a particular page because there is not there any request yet', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips?page=10000000')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(noRequestsFoundOnThisPage);
+        done();
+      });
+  });
+  it('Will not retrieve any request on a particular page because there is not there any request yet', (done) => {
+    chai
+      .request(server)
+      .get('/api/trips?page=cool')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(badRequest);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.be.an('object').to.have.property('error').to.equal(pageMustBeANumber);
+        done();
+      });
+  });
+});
+
+describe('Testing deleting comments', () => {
+  it('Will not be able to delete an not exists comment, expect it to return a response with 200 status code and an object with message', (done) => {
+    chai
+      .request(server)
+      .delete('/api/trips/comment/0')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(notFound);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(commentNoFound);
+        done();
+      });
+  });
+
+
+  it(`Will try to delete comment which is not mine, 
     expect it to return a response with 401 status code and error message`, (done) => {
-        chai
-          .request(server)
-          .delete('/api/trips/comment/1')
-          .set('Authorization', authTokenManager)
-          .end((err, res) => {
-            if (err) done(err);
-            expect(res).to.have.status(unAuthorized);
-            expect(res.body).to.be.an('object');
-            expect(res.body).to.have.property('error').to.equal(isNotMyComment);
-            done();
-          });
+    chai
+      .request(server)
+      .delete('/api/trips/comment/1')
+      .set('Authorization', authTokenManager)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(unAuthorized);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('error').to.equal(isNotMyComment);
+        done();
       });
+  });
 
 
-      it('Will delete comment, expect it to return a response with 200 status code and an object with message', (done) => {
-        chai
-          .request(server)
-          .delete('/api/trips/comment/1')
-          .set('Authorization', authToken)
-          .end((err, res) => {
-            if (err) done(err);
-            expect(res).to.have.status(ok);
-            expect(res.body).to.be.an('object');
-            expect(res.body).to.have.property('message').to.equal(commentDeleted);
-            done();
-          });
+  it('Will delete comment, expect it to return a response with 200 status code and an object with message', (done) => {
+    chai
+      .request(server)
+      .delete('/api/trips/comment/1')
+      .set('Authorization', authToken)
+      .end((err, res) => {
+        if (err) done(err);
+        expect(res).to.have.status(ok);
+        expect(res.body).to.be.an('object');
+        expect(res.body).to.have.property('message').to.equal(commentDeleted);
+        done();
       });
-    });
+  });
+});
 
 describe('Search trip requests', () => {
   it('should retrieve trip requests with valid search criteria 1', (done) => {
@@ -1392,19 +1976,19 @@ describe('Trips stats', () => {
         expect(error).to.be.a('string');
         expect(error).to.equal(invalidTripsStatsEndDate);
         done();
-  }); 
-}); 
+      });
+  });
 });
 describe('update open travel request', () => {
   let notOpenId;
   before('Insert sample request in db', () => {
     sequelize.query(INSERT_REQUEST)
-    .then(() => {
-      sequelize.query(SELECT_REQUEST)
-      .then((request) => {
-        [notOpenId] = request;
+      .then(() => {
+        sequelize.query(SELECT_REQUEST)
+          .then((request) => {
+            [notOpenId] = request;
+          });
       });
-    });
   });
   it('should not update open travel request when token is missing', (done) => {
     chai
@@ -1516,7 +2100,7 @@ describe('update open travel request', () => {
         done();
       });
   });
-  
+
   it('should create an updator', (done) => {
     chai
       .request(server)
@@ -1604,7 +2188,7 @@ describe('Book Accommodations', () => {
           .set('Authorization', authToken)
           .send({
               ...bookAccommodation,
-              tripRequestId: requesterTripRequests[0].id,
+              tripRequestId: tripId,
               accommodationId: 9999999,
           })
           .end((err, res) => {
@@ -1622,7 +2206,7 @@ describe('Book Accommodations', () => {
           .request(server)
           .post('/api/accommodations/book')
           .set('Authorization', authToken)
-          .send({ ...bookAccommodation, tripRequestId: requesterTripRequests[0].id })
+          .send({ ...bookAccommodation, tripRequestId: tripId })
           .end((err, res) => {
               if (err) done(err);
               const { data, message } = res.body;
@@ -1640,7 +2224,7 @@ describe('Book Accommodations', () => {
           .request(server)
           .post('/api/accommodations/book')
           .set('Authorization', authToken)
-          .send({ ...bookAccommodation, tripRequestId: requesterTripRequests[0].id })
+          .send({ ...bookAccommodation, tripRequestId: tripId })
           .end((err, res) => {
               if (err) done(err);
               const { error } = res.body;

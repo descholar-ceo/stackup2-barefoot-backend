@@ -29,6 +29,8 @@ export default (sequelize, DataTypes) => {
       REQUESTER
       ),
     isVerified: DataTypes.BOOLEAN,
+    emailNotification: DataTypes.BOOLEAN,
+    inAppNotification: DataTypes.BOOLEAN,
     birthDate: DataTypes.DATE,
     preferredLanguage: DataTypes.STRING,
     preferredCurrency: DataTypes.STRING,
@@ -36,7 +38,7 @@ export default (sequelize, DataTypes) => {
     lineManager: DataTypes.INTEGER,
     idCardNumber: DataTypes.STRING,
     phoneNumber: DataTypes.STRING,
-    profileImage: DataTypes.STRING
+    profileImage: DataTypes.STRING,
   }, {});
 
   user.associate = (models) => {

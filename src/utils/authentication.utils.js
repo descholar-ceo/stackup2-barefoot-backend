@@ -8,23 +8,15 @@ import _ from 'lodash';
 * @description Retrieves form values from request body
 */
 const getFormData = async (payload) => {
-  const {
-    firstName,
-    lastName,
-    username,
-    email,
-    password,
-    gender,
-    address,
-  } = payload;
   const data = {
-    firstName,
-    lastName,
-    username,
-    email,
-    password,
-    gender,
-    address,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    username: payload.username,
+    email: payload.email,
+    password: payload.password,
+    gender: payload.gender,
+    lineManager: payload.lineManager,
+    address: payload.address,
   };
   return data;
 };

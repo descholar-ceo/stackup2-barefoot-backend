@@ -9,7 +9,7 @@ const {
     findUserByEmailOrUsername, 
     findUserEmailIfExist, 
     updateUserPassword,
-    updateIsVerified
+    updateIsVerifiedOrDisableNotification
 } = UserService;
 
 let returnedId;
@@ -75,7 +75,7 @@ describe('User authentication services tests', () => {
       .catch(error => { console.log(error); done(); });
   });
   it('Should verify the user', (done) => {
-    updateIsVerified(returnedEmail)
+    updateIsVerifiedOrDisableNotification(returnedEmail)
         .then(data => {
         chai.expect(data).to.be.an('array');
         done();

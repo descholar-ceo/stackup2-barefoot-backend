@@ -15,7 +15,7 @@ const {
   requester3Account,
   loginSuperUser
 } = mockData;
-const { oneWayTripRequestCreated, verifyMessage } = customMessages;
+const { oneWayTripRequestCreated, verifyMessage, bookingInfo } = customMessages;
 const { created, ok } = statusCodes;
 const { findUserByEmailOrUsername } = UserService;
 
@@ -247,6 +247,7 @@ describe('Manager approves and reject trip request', () => {
       .patch(`/api/trips/${tripId}/approve`)
       .set('Authorization', manager1Token)
       .end((err, res) => {
+        console.log('===||', res.body);
         if (err) done(err);
         const { message } = res.body;
         expect(res.status).to.equal(statusCodes.ok);
@@ -569,6 +570,24 @@ describe('Manager assigns trip request to another manager', () => {
         expect(res.status).to.equal(statusCodes.forbidden);
         expect(error);
         expect(error).to.equal(customMessages.cannotAssignRejected);
+        done();
+      });
+  });
+
+  it('Should return the details of a booking', (done) => {
+    chai
+      .request(server)
+      .get('/api/accommodations/1')
+      .set('Authorization', manager1Token)
+      .end((err, res) => {
+        if (err) done(err);
+        const { message, data } = res.body;
+        expect(res.status).to.equal(ok);
+        expect(message);
+        expect(data);
+        expect(data).to.be.an('object');
+        expect(message).to.be.a('string');
+        expect(message).to.equal(bookingInfo);
         done();
       });
   });
