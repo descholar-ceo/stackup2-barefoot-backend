@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import roles from '../../src/utils/userRoles.utils';
 
+const date = new Date();
+
 dotenv.config();
 
 export default {
@@ -486,4 +488,61 @@ export default {
     gender: 'Female',
   },
   unexistantLineManager: 1000,
+  ratesRequester: {
+    firstName: 'rates',
+    lastName: 'rates',
+    username: 'rate',
+    email: 'rate@rate.com',
+    address: 'Kigali',
+    password: 'Rates@0000',
+    gender: 'Female',
+  },
+  notRatesRequester: {
+    firstName: 'rates',
+    lastName: 'rates',
+    username: 'notRate',
+    email: 'notRate@rate.com',
+    address: 'Kigali',
+    password: 'Rates@0000',
+    gender: 'Female',
+  },
+  validRatesInfo: {
+    rates: 2
+  },
+  invalidRatesInfo: {
+    rates: 14
+  },
+  ratesTripRequest: {
+    travelFrom: 'kigali',
+    travelTo: 'Butare',
+    travelDate: '2020-07-30',
+    travelReason: 'business meeting',
+    travelType: 'One-way',
+    accommodation: true,
+  },
+  ratesFutureTripRequest: {
+    travelFrom: 'kigali',
+    travelTo: 'Butare',
+    travelDate: '2020-08-30',
+    travelReason: 'business meeting',
+    travelType: 'One-way',
+    accommodation: true,
+  },
+  ratesTripRequestNotBooked: {
+    travelFrom: 'kigali',
+    travelTo: 'Butare',
+    travelDate: '2020-08-26',
+    travelReason: 'business meeting',
+    travelType: 'One-way',
+    accommodation: true,
+  },
+  managerCommentLogin: {    
+    email: 'commentManager@gmail.com',
+    password: 'commentManager@1'
+  },
+  bookRateAccommodation: {
+    accommodationId: 3,
+    arrivalDate: new Date(Date.now() + 432000000),
+    departureDate: new Date(Date.now() + 518400000),
+  },
 };

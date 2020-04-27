@@ -18,7 +18,21 @@ export default {
     isVerified: false,
     createdAt: new Date(),
     updatedAt: new Date()
-    }
+    },
+    {
+      firstName: 'Emmanuel',
+      lastName: 'descholar',
+      username: 'commentManager',
+      email: 'commentManager@gmail.com',
+      password: await passwordHasher('commentManager@1'),
+      gender: 'Male',
+      address: 'Butare',
+      role: 'manager',
+      isVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+      }
+
   ], {}),
 
   down: (queryInterface, Sequelize) => queryInterface.bulkDelete('users', null, {})

@@ -1,9 +1,11 @@
 import express from 'express';
 import Authentication from '../../middlewares/authentication';
 import controllers from '../../controllers';
-
+import accommodationMiddleware from '../../middlewares/ratingChecker';
 import {
     checkAccommodationBookingInfo,
+    validateRatingInfo,
+    validateParamsId,
 } from '../../utils/validations';
 
 const {
@@ -12,14 +14,37 @@ const {
 
 const {
     bookAccommodation,
+    rateAccommodation,
+    getRatesAccommodation,
 } = AccommodationController;
 
 const {
     isUserLoggedInAndVerified
 } = Authentication;
 
-const router = require('express').Router();
+const { isYourAccommodationBooked, 
+    isYourAccommodationValid,
+    isTripRequestValidIsYours,
+    rateTheAccommodation, 
+} = accommodationMiddleware;
+const router = express.Router();
 
 router.post('/book', [isUserLoggedInAndVerified, checkAccommodationBookingInfo], bookAccommodation);
+router.post(
+    '/rates', 
+isUserLoggedInAndVerified, 
+validateRatingInfo, 
+isTripRequestValidIsYours, 
+isYourAccommodationBooked, 
+rateTheAccommodation,
+rateAccommodation
+);
+router.get(
+    '/rates/:accommodationId', 
+isUserLoggedInAndVerified, 
+validateParamsId, 
+isYourAccommodationValid, 
+getRatesAccommodation
+);
 
 export default router;

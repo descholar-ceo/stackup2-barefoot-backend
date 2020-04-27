@@ -13,16 +13,10 @@ module.exports = (sequelize, DataTypes) => {
     handledBy: DataTypes.INTEGER
   });
   request.associate = (models) => {
-    request.hasMany(models.comment, {
-      foreignKey: 'requestId',
-      onDelete: 'CASCADE'
-    });
-    request.belongsTo(models.user, {
-      foreignKey: 'userId'
-    });
-    request.belongsTo(models.user, {
-      foreignKey: 'handledBy'
-    });
+    request.hasMany(models.comment, { foreignKey: 'requestId' });
+    request.belongsTo(models.user, { foreignKey: 'userId' });
+    request.belongsTo(models.user, { foreignKey: 'handledBy' });
+    request.hasMany(models.rating, { foreignKey: 'requestId', onUpdate: 'CASCADE' });
   };
   return request;
 };

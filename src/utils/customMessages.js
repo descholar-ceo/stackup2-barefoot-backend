@@ -137,7 +137,17 @@ const messages = {
   lineManagerNotFound: 'Sorry, this line manager does not exist',
   userNotlineManager: 'Sorry, the line manager you specified is not a manager',
   cannotBeOwnManager: 'Sorry, you cannot be your own manager',
-  userIdNotString: 'userId must be a string'
+  userIdNotString: 'userId must be a string',
+  successRating: 'You have successfully rated the accommodation',
+  failedRating: 'The accommodation has been rated on this request',
+  invalidRates: 'The rates must not be empty and has to be a number in the range of 1-5',
+  notAssociated: 'The provided request did not book an acommodation',
+  notBookingOwner: 'You are not the owner of this request',
+  beforeTripDate: 'You can only rate an accommodation you have been to',
+  notExistAccommodation: 'That accommodation does not exists',
+  notBooked: 'This accommodation is not booked',
+  notRated: 'This accommodation is not rated',
+  allRates: 'Here are all rates related to that accommodation',
 };
 
 export default messages;

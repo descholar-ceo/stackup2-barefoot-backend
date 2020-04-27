@@ -9,35 +9,26 @@ import AccommodationService from '../services/accommodation.service';
 import tripRequestsService from '../services/request.service';
 
 const { errorResponse } = responseHandlers;
-
 const { badRequest } = statusCodes;
-
 const {
   invalidTravelType,
   invalidReturnDate,
   accommodationNotExist,
   tripRequestNotExist,
+  invalidTripRequestId,
+  invalidBookAccommodationAccommodationId,
 } = customMessages;
-
 const { decodeToken } = utils;
-
 const {
   validateOneWayTripRequest,
   validateReturnDate,
   validateTripRequestsSearch,
   validateTripRequestsSearchField,
   validateBookAccommodation,
-  validateRequestId,
-  validateUserId
 } = Validators;
-
-const {
-  getAccommodationById,
-} = AccommodationService;
-
-const {
-  getTripRequestById,
-} = tripRequestsService;
+const { validateId, validateUserId, validateRates, } = Validators;
+const { getAccommodationById } = AccommodationService;
+const { getTripRequestById, } = tripRequestsService;
 
 /**
 * @param {string} pattern
@@ -254,10 +245,7 @@ const checkAccommodationBookingInfo = async (req, res, next) => {
   try {
     const bookingInfo = req.body;
     const validBookingInfo = await validateBookAccommodation(bookingInfo);
-    const {
-      accommodationId,
-      tripRequestId,
-    } = validBookingInfo;
+    const { accommodationId, tripRequestId, } = validBookingInfo;
     const accommodationExists = !!await getAccommodationById(accommodationId);
     const tripRequestExists = !!await getTripRequestById(tripRequestId);
     if (!accommodationExists) {
@@ -283,7 +271,7 @@ const handleRequestStatusUpdate = async (req, res, next) => {
   const errorMessage = [];
   let errors = '';
   try {
-    await validateRequestId(req.params.tripRequestId);
+    await validateId(req.params.tripRequestId, customMessages.invalidTripRequestId);
   } catch (err) {
     errorMessage.push(err);
   }
@@ -309,6 +297,51 @@ const handleRequestReassignment = async (req, res, next) => {
   displayErrorMessages(error, res, next);
 };
 
+/** 
+* @param {object} req Node/express request
+* @param {object} res Node/express response
+* @param {object} next Node/Express Next callback function
+* @returns {Object} Custom response with created trip details
+* @description validates trip request id
+*/
+const validateRatingInfo = async (req, res, next) => {
+  const errorMessage = [];
+  let errors = '';
+  try {
+    await validateId(req.body.requestId, invalidTripRequestId);
+  } catch (err) {
+    errorMessage.push(err);
+  }
+    try {
+    await validateRates(req.body.rates);
+  } catch (err) {
+    errorMessage.push(err);
+  }
+  if (errorMessage.length === 0) {
+    return next();
+  }
+  errorMessage.forEach((element) => {
+    errors += `${element.message}.`;
+  });
+  return errorResponse(res, badRequest, errors);
+};
+
+/** 
+* @param {object} req Node/express request
+* @param {object} res Node/express response
+* @param {object} next Node/Express Next callback function
+* @returns {Object} Custom response with created trip details
+* @description validates accommodation id
+*/
+const validateParamsId = async (req, res, next) => {
+  try {
+    await validateId(req.params.accommodationId, invalidBookAccommodationAccommodationId);
+    return next();
+  } catch (err) {
+    return errorResponse(res, badRequest, err.details[0].message);
+  }
+};
+
 export {
   validateSignup,
   isTripRequestValid,
@@ -320,4 +353,6 @@ export {
   checkAccommodationBookingInfo,
   handleRequestStatusUpdate,
   handleRequestReassignment,
+  validateRatingInfo,
+  validateParamsId,
 };
