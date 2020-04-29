@@ -137,7 +137,12 @@ const messages = {
   lineManagerNotFound: 'Sorry, this line manager does not exist',
   userNotlineManager: 'Sorry, the line manager you specified is not a manager',
   cannotBeOwnManager: 'Sorry, you cannot be your own manager',
-  userIdNotString: 'userId must be a string'
+  userIdNotString: 'userId must be a string',
+  likedAccommodation: 'You have successfuly liked that accommodation',
+  dislikedAccommodation: 'You have successfuly disliked that accommodation',
+  unlikedAccommodation: 'You have successfuly unliked that accommodation',
+  unDislikedAccommodation: 'You have successfuly un-disliked that accommodation',
+  userAccommodationReactionNotExist: 'Action failed, you must like/dislike an accommodation before you unlike/un-dislike it',
 };
 
 export default messages;

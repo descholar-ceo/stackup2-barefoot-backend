@@ -486,4 +486,20 @@ export default {
     gender: 'Female',
   },
   unexistantLineManager: 1000,
+  requester4Account: {
+    firstName: 'Requester',
+    lastName: 'Account',
+    username: 'requester4',
+    email: 'requester4@example.com',
+    password: '@Requester123',
+    gender: 'Male',
+    address: 'Butare',
+    isVerified: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+},
+  nonExistentAccommodationId: 9999,
+  invalidAccommodationId: 'invalidId',
+  firstValidAccommodationId: 1,
+  secondValidAccommodationId: 2,
 };

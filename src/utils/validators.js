@@ -270,4 +270,22 @@ export default class Validators {
       abortEarly: false,
     });
   }
+
+  /**
+  * @param {number} accommodationInfo contains accommodationId to validate
+  * @returns {Object} validation output/error
+  * @description validates the accommodation ID
+  */
+  static validateAccommodationId(accommodationInfo) {
+    const { createValidationErrors } = Validators;
+    const validInteger = Joi.number().integer().required();
+    const schema = Joi.object({
+      accommodationId: validInteger
+        .messages(createValidationErrors('number', invalidBookAccommodationAccommodationId)),
+    });
+    return schema.validateAsync(accommodationInfo, {
+      abortEarly: false,
+      allowUnknown: true,
+    });
+  }
 }
