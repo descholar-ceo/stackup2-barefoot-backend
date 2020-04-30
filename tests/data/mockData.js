@@ -494,5 +494,13 @@ export default {
     gender: 'Female',
   },
   unexistantLineManager: 1000,
-
+  managerTestAccount: {
+    firstName: 'Michael',
+    lastName: 'Jordan',
+    username: 'mj@thegreat',
+    email: 'jordan@nba.com',
+    address: 'Chicago',
+    password: 'Jordan@2020',
+    gender: 'Male',
+  },
 };

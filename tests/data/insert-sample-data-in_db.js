@@ -14,3 +14,5 @@ INSERT INTO requests ("userId","travelFrom","travelTo","travelDate","travelReaso
 VALUES(1,'Tokyo','Seoul','2020-07-18','Business','one-way','accepted',true,NOW(),NOW())`;
 export const SELECT_REQUEST = `
 SELECT * FROM requests WHERE status = 'accepted';`;
+export const DROP_USER = `
+DELETE FROM users WHERE email='john@doe.com';`;

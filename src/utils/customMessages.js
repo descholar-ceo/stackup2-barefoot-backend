@@ -162,7 +162,8 @@ const messages = {
   pageNotFound: 'This page does not have content',
   updateFailed: 'Update Failed, please try again!',
   cantDltAccommWithRooms: 'You are not allowed to delete this accommodation because it has some rooms, delete all of its rooms first, and then delete it!',
-  itemNotExist: 'Update failed because the item you want to update does not exist'
+  itemNotExist: 'Update failed because the item you want to update does not exist',
+  accountAlreadyVerified: 'You have already verified your account, please login',
 };
 
 export default messages;

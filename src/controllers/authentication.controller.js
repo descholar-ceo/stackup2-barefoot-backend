@@ -85,15 +85,15 @@ export default class AuthenticationController {
     const {
       intro, instruction, text
     } = resetMessage;
-      const users = await findUserByEmailOrUsername(email.toLowerCase());
-      if (users) {
-        const user = users.dataValues;
-        const token = await generateToken(user);
-        const url = `${token}`;
-        await sendMail(user.email, user.firstName, intro, instruction, text, url);
-        return successResponse(res, statusCodes.ok, customMessages.resetEmail, token);
-      }
-      return errorResponse(res, statusCodes.forbidden, customMessages.notExistUser);
+    const users = await findUserByEmailOrUsername(email.toLowerCase());
+    if (users) {
+      const user = users.dataValues;
+      const token = await generateToken(user);
+      const url = `${token}`;
+      await sendMail(user.email, user.firstName, intro, instruction, text, url);
+      return successResponse(res, statusCodes.ok, customMessages.resetEmail, token);
+    }
+    return errorResponse(res, statusCodes.forbidden, customMessages.notExistUser);
   }
 
   /**
@@ -119,9 +119,7 @@ export default class AuthenticationController {
   }
 
   static verify = async (req, res) => {
-    const { token } = req.query;
-    const decoded = jwtDecode(token);
-    const { email } = decoded;
+    const { email } = req.userDetails;
     await updateIsVerified(email);
     return successResponse(res, statusCodes.ok, customMessages.verifyMessage);
   }

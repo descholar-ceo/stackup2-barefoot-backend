@@ -15,7 +15,8 @@ const {
   userLogout
 } = AuthenticationController;
 const {
-  isUserLoggedInAndVerified
+  isUserLoggedInAndVerified,
+  checkUserVerification,
 } = Authentication;
 
 const authenticationRouter = express.Router();
@@ -24,7 +25,7 @@ authenticationRouter.post('/signup', signupValidation, signUp);
 authenticationRouter.post('/login', bothEmailAndPasswordExist, loginDataExistOnByOne, verifyCredentials, userLogin);
 authenticationRouter.post('/resetpassword', validateResetEmail, sendResetEmail);
 authenticationRouter.post('/resetpassword/:token', passwordValidation, verifyToken, updatePassword);
-authenticationRouter.get('/verify', verify);
+authenticationRouter.get('/verify', checkUserVerification, verify);
 authenticationRouter.get('/logout', isUserLoggedInAndVerified, userLogout);
 
 authenticationRouter.get('/facebook', passport.authenticate('facebook'));

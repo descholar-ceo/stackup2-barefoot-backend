@@ -9,7 +9,7 @@ import userRoles from '../utils/userRoles.utils';
 import utils from '../utils/authentication.utils';
 
 const { errorResponse } = responseHandlers;
-const { unAuthorized, badRequest, notFound, forbidden } = statusCodes;
+const { unAuthorized, badRequest, notFound, forbidden, conflict } = statusCodes;
 const {
   tokenVerifyFailed,
   accountNotVerified,
@@ -20,6 +20,8 @@ const {
 const {
   lineManagerNotFound,
   userNotlineManager,
+  accountAlreadyVerified,
+  notExistUser,
 } = customMessages;
 const { SUPER_ADMIN, SUPER_USER, MANAGER } = userRoles;
 const { convertToLowerCase } = utils;
@@ -115,5 +117,34 @@ export default class Authentication {
       }
     }
     next();
+  }
+
+  /**
+  * @param {Request} req Node/Express Request object
+  * @param {Response} res Node/Express Response object
+  * @param {NextFunction} next Node/Express Next callback function
+  * @returns {NextFunction | Object} Node/Express Next callback function or an error response
+  * @description Checks if the user exists and has not verified their account
+  */
+  static async checkUserVerification(req, res, next) {
+    const { token } = req.query;
+    if (!token) {
+      return errorResponse(res, badRequest, tokenMissing);
+    }
+    try {
+      const decodedToken = verify(token, process.env.JWT_KEY);
+      const { id } = decodedToken;
+      const user = await UserService.getUserById(id);
+      if (!user) {
+        return errorResponse(res, notFound, notExistUser);
+      }
+      if (user.isVerified) {
+        return errorResponse(res, conflict, accountAlreadyVerified);
+      }
+      req.userDetails = user;
+      next();
+    } catch (error) {
+      return errorResponse(res, badRequest, tokenInvalid);
+    }
   }
 }
